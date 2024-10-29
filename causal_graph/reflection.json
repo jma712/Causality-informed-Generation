@@ -1,0 +1,36 @@
+{
+  "variables": {
+      "a": {
+          "name": "Angle of incidence",
+          "description": "The angle between the incident light and the normal of the mirror.",
+          "unit": "degrees"
+      },
+      "b": {
+          "name": "Mirror tilt angle",
+          "description": "The angle of the mirror relative to the horizontal line, with clockwise considered positive.",
+          "unit": "degrees"
+      },
+      "c": {
+          "name": "Reflection position on the wall",
+          "description": "The position where the reflected light hits the wall.",
+          "unit": "m"
+      }
+  },
+  "formula": {
+      "equation": "c = d * tan(a + b)",
+      "variables": {
+          "c": "Reflection position on the wall (m)",
+          "d": "Distance from the mirror to the wall (m)",
+          "a": "Angle of incidence (degrees)",
+          "b": "Mirror tilt angle (degrees)"
+      }
+  },
+  "causal_relationship": {
+      "description": "The angle of incidence (a) and the mirror tilt angle (b) jointly affect the reflection position on the wall (c). A larger angle of incidence or tilt angle leads to a greater reflection shift on the wall.",
+      "causal_chain": [
+          "Angle of incidence affects the angle at which light hits the mirror.",
+          "Mirror tilt angle determines the reflection angle of the light.",
+          "The combined angle of incidence and mirror tilt dictates the position of reflection on the wall."
+      ]
+  }
+}
