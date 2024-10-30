@@ -9,6 +9,9 @@ import numpy as np
 from typing import Tuple, Union, Optional
 from dataclasses import dataclass
 import matplotlib.pyplot as plt 
+from tqdm import tqdm
+from datetime import datetime
+import csv
 
 
 @dataclass
@@ -33,6 +36,7 @@ def calculate_node_magnetic_info(
     node_position: Tuple[float, float],  # 待计算节点位置
     strength: float = 1.0,  # 磁场强度系数
     visualize: bool = True,  # 是否显示可视化
+    png_name: str = None,
 ) -> NodeInfo:
     """
     计算特定节点在磁场中的信息并可选择性地可视化
@@ -57,7 +61,7 @@ def calculate_node_magnetic_info(
     if isinstance(magnet_direction, (int, float)):
         # 如果输入是角度，转换为方向向量
         direction = np.array([np.cos(math.radians(magnet_direction)), np.sin(math.radians(magnet_direction))])
-        print("the direction of the current magnet bar:", direction)
+        # print("the direction of the current magnet bar:", direction)
     else:
         # 如果输入是向量，归一化
         direction = np.array(magnet_direction)
@@ -77,11 +81,11 @@ def calculate_node_magnetic_info(
     dist_s = np.linalg.norm(r_s)
     
     
-    print("center: "  + str(center))
-    print("direction of magnet: " + str(direction))
-    print("half_length: " + str(half_length))
-    print("center + direction * half_length = " + str(center + direction * half_length))
-    print(f"north: {north}, south: {south}") # 打印N极和S极位置
+    # print("center: "  + str(center))
+    # print("direction of magnet: " + str(direction))
+    # print("half_length: " + str(half_length))
+    # print("center + direction * half_length = " + str(center + direction * half_length))
+    # print(f"north: {north}, south: {south}") # 打印N极和S极位置
     
 
     
@@ -101,8 +105,8 @@ def calculate_node_magnetic_info(
         else:
             field_direction = field / magnitude
             angle = np.arctan2(field_direction[1], field_direction[0])
-    print(f"the angle in {node_position}: ",angle)
-    print('field_direction:',field_direction)
+    # print(f"the angle in {node_position}: ",angle)
+    # print('field_direction:',field_direction)
     # 创建结果对象
     result = NodeInfo(
         position=node,
@@ -155,8 +159,7 @@ def calculate_node_magnetic_info(
                    max(south[1], north[1], node[1]) + margin)
         
         if ax is not None:
-            # plt.show()
-            plt.savefig('2D_scene.png')
+            plt.savefig(png_name)
     
     return result
 
@@ -165,52 +168,9 @@ def clear_scene():
     """删除当前场景中的所有对象。"""
     bpy.ops.object.select_all(action='SELECT')  # 选择所有对象
     bpy.ops.object.delete()  # 删除选中的对象
-    print("清空场景完成。")
+    # print("清空场景完成。")
 
-
-def setting_camera(location, target, scene_bounds=((-30, 30), (-30, 30), (0, 30))):
-    """
-    This function sets the camera location and target.
-    The camera's position should be within the range defined by the scene bounds.
-    
-    Parameters:
-    - location: tuple (x, y, z) representing the desired camera position.
-    - target: tuple (x, y, z) representing the target point the camera should point at.
-    - scene_bounds: tuple of tuples ((xmin, xmax), (ymin, ymax), (zmin, zmax))
-                    defining the allowable range for camera positioning.
-    """
-    
-    # Unpack scene bounds
-    (xmin, xmax), (ymin, ymax), (zmin, zmax) = scene_bounds
-
-    # Clamp the camera location within the scene bounds
-    clamped_location = (
-        max(xmin, min(xmax, location[0])),
-        max(ymin, min(ymax, location[1])),
-        max(zmin, min(zmax, location[2]))
-    )
-
-    # 删除已有的摄像机
-    if "Camera" in bpy.data.objects:
-        camera = bpy.data.objects["Camera"]
-        bpy.data.objects.remove(camera, do_unlink=True)
-        print("Deleted existing camera")
-
-    # 创建新的摄像机
-    bpy.ops.object.camera_add(location=clamped_location)
-    camera = bpy.context.active_object
-    camera.name = "Camera"
-    print("Created new camera")
-
-    # 设置摄像机朝向目标位置
-    direction = Vector(target) - camera.location
-    camera.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
-
-    # 将摄像机设置为当前场景的活动摄像机
-    bpy.context.scene.camera = camera
-    print(f"Camera location set to {camera.location}, pointing towards {target}")
-
-def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2):
+def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2, over = False):
     """
     随机设置相机位置，并确保指定的对象都在视野中。
     
@@ -243,12 +203,16 @@ def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2)
     # 随机设置相机位置
     random_distance = max_dim * 1.5  # 确保相机距离足够远
     random_angle = random.uniform(0, 2 * math.pi)  # 随机角度
-    camera.location = bbox_center + Vector((
-        random_distance * math.cos(random_angle),
-        random_distance * math.sin(random_angle),
-        random.uniform(1, max_dim)  # 随机高度
-    ))
-    
+    if over:
+      camera.location = Vector((bbox_center.x, bbox_center.y, bbox_center.z + max_dim + 10))
+    else:
+      
+      camera.location = bbox_center + Vector((
+          random_distance * math.cos(random_angle),
+          random_distance * math.sin(random_angle),
+          random.uniform(1, max_dim)  # 随机高度
+      ))
+      
     # 将相机对准边界框中心
     direction = ( camera.location-bbox_center).normalized()  # 确保方向是单位向量
     camera.rotation_euler = direction.to_track_quat('Z', 'Y').to_euler()  # 使用相机的Z轴朝向目标
@@ -257,6 +221,9 @@ def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2)
     bpy.context.view_layer.objects.active = camera
     bpy.context.scene.camera = camera
     bpy.ops.view3d.camera_to_view_selected()
+
+
+
 
 
 def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=0):
@@ -281,10 +248,6 @@ def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angl
             
             # 设置位置和缩放
             obj.location = location
-            # obj.scale = scale
-            # print(">>>>>>", rotation_angle)
-            # obj.rotation_euler[2] = rotation_angle  # 直接设置 Z 轴的旋转角度
-            # 选择对象并应用旋转
             bpy.context.view_layer.objects.active = obj
             bpy.ops.object.select_all(action='DESELECT')
             obj.select_set(True)
@@ -300,7 +263,7 @@ def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angl
         constraint_axis=(False, False, True)
       )
     
-    print("场景已导入成功！")
+    # print("场景已导入成功！")
     
 def load_blend_file_backgournd(filepath):
     """导入指定的 .blend 文件中的所有对象。"""
@@ -309,7 +272,7 @@ def load_blend_file_backgournd(filepath):
     for obj in data_to.objects:
         if obj is not None:
             bpy.context.collection.objects.link(obj)
-    print("场景已导入成功！")
+    # print("场景已导入成功！")
 
 def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png"):
     """设置渲染参数，包括分辨率、格式和输出路径。"""
@@ -409,54 +372,6 @@ def magnetic_needle_direction_xy_plane(m, magnet_position, needle_position):
     needle_direction_xy = B / np.linalg.norm(B)
     
     return needle_direction_xy
-
-# def align_needle_direction(needle_mesh_name, needle_direction_xy):
-#     """
-#     调整磁针的方向，使其与指定方向对齐。
-    
-#     参数:
-#     needle_mesh_name : str
-#         磁针 mesh 的名称。
-#     needle_direction_xy : np.array
-#         目标方向的单位向量，限制在 x-y 平面上。
-#     """
-#     # 获取磁针对象
-#     needle = bpy.data.objects[needle_mesh_name]
-    
-#     # 确保目标方向在 x-y 平面内，并将其归一化
-#     print(">>>>>>")
-#     print(needle_direction_xy)
-#     needle_direction_xy[2] = 0  # 保持 z 分量为 0
-#     needle_direction_xy = needle_direction_xy / np.linalg.norm(needle_direction_xy)  # 归一化
-    
-#     # 计算目标方向与 x 轴之间的夹角
-#     angle = np.arctan2(needle_direction_xy[1], needle_direction_xy[0])  # 返回弧度
-    
-#     # 设置磁针的旋转，使其指向目标方向
-#     # 假设磁针初始方向是沿 x 轴
-#     needle.rotation_euler = (0, 0, angle)  # z 轴上的旋转
-    
-
-def align_needle_direction(needle_mesh_name, needle_direction_xy):
-    """
-    旋转指定的模型，使其在X-Y平面上对齐到指定角度。
-    
-    参数:
-    - needle_mesh_name: 待操作的模型名称 (字符串)
-    - needle_direction_xy: 旋转角度，以弧度表示（在X-Y平面上）
-    """
-    # 获取模型对象
-    needle = bpy.data.objects.get(needle_mesh_name)
-    if needle is None:
-        print(f"模型 '{needle_mesh_name}' 不存在。")
-        return
-    
-    # 确保模型的旋转限定在X-Y平面上
-    needle.rotation_euler[2] = needle_direction_xy  # 在Z轴上旋转
-    
-    # 更新场景
-    bpy.context.view_layer.update()
-    print(f"模型 '{needle_mesh_name}' 已旋转到角度 {math.degrees(needle_direction_xy):.2f}°")
     
     
 def random_point_on_ring(inner_radius, outer_radius):
@@ -484,10 +399,13 @@ def main(
     background = 'blank',
     scene = 'scene',
     render_output_path = "../database/rendered_image.png",
-    save_path = "../database/modified_scene.blend"
+    csv_file = None,
+    iter = 0
   ):
     clear_scene()
-
+    current_time = datetime.now()
+    file_name = current_time.strftime("%Y%m%d_%H%M%S")  # 格式化为 YYYYMMDD_HHMMSS
+    twoD_output_path = os.path.join(render_output_path, file_name+"_2D.png")
     if 'blank' in background.lower():
       background = "./database/blank_background.blend"
       load_blend_file_backgournd(background)
@@ -495,38 +413,45 @@ def main(
 
     blender = "./database/magnet.blend"
     needle = "./database/compass.blend"
-    random_rotation_angle = 45#random.uniform(0, 360)
-    print(f"rotation_angle of magnet: {random_rotation_angle:.2f}")
+    random_rotation_angle = random.uniform(0, 360)
+    
+    # print(f"rotation_angle of magnet: {random_rotation_angle:.2f}")
+    
     load_blend_file(blender, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=-random_rotation_angle)
-
 
     inner_radius = 2  # 圆环的内半径
     outer_radius = 4  # 圆环的外半径
     needle_location = random_point_on_ring(inner_radius, outer_radius)
-    print(f"needle_location is (x-y plane): {needle_location[:2]}")
     result = calculate_node_magnetic_info(
         magnet_center=(0, 0),
         magnet_direction=-random_rotation_angle,
         magnet_length=3.9,
         node_position=needle_location[:2],
-        visualize=True
+        visualize=True,
+        png_name = twoD_output_path
     )
 
     rotation_angle = result.angle_degrees
     load_blend_file(filepath = needle, location = needle_location, scale=(1, 1, 1),rotation_angle=result.angle_degrees)
-    print("needle direction in x-y plane:", result.field_direction)
-    print("needle position：", needle_location)
-    set_render_parameters(output_path=render_output_path)
-    
 
+
+    render_3D_output_path = os.path.join(render_output_path, file_name+"_3D.png")
+    set_render_parameters(output_path=render_3D_output_path)
+  
     bpy.ops.object.camera_add()
     camera = bpy.context.object
     fit_camera_to_objects_with_random_position(camera, ["Cylinder.003_CompassNeedleHolder_mat_0", "Object_2"]) 
-    # setting_camera(camera_location, target_location)   
     render_scene()
+    
+    render_3D_over_output_path = os.path.join(render_output_path, file_name+"_Over_3D.png")
+    fit_camera_to_objects_with_random_position(camera, ["Cylinder.003_CompassNeedleHolder_mat_0", "Object_2"], over=True) 
+    set_render_parameters(output_path=render_3D_over_output_path)
+    render_scene()
+    # 将结果写入 CSV 文件
+    with open(csv_file, mode="a", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow([iter, render_3D_output_path, render_3D_over_output_path,twoD_output_path, -random_rotation_angle, needle_location, result.field_direction])
 
-    if save_path:
-        save_blend_file(save_path)
 
 def save_blend_file(filepath):
     """保存当前场景为指定的 .blend 文件，直接覆盖原有文件。"""
@@ -534,25 +459,30 @@ def save_blend_file(filepath):
         print('remove the existing file')
         os.remove(filepath)  # 删除已有文件
     bpy.ops.wm.save_as_mainfile(filepath=filepath)
-    print(f"修改后的场景已保存到：{filepath}")
+    # print(f"修改后的场景已保存到：{filepath}")
 
 def render_scene():
     """执行渲染并保存图像。"""
     bpy.ops.render.render(write_still=True)
-    print(f"渲染完成，图像已保存到：{bpy.context.scene.render.filepath}")
+    # print(f"渲染完成，图像已保存到：{bpy.context.scene.render.filepath}")
 
 if __name__ == "__main__":
   # 创建 ArgumentParser 对象
-  parser = argparse.ArgumentParser(description="Blender Rendering Script")
-
-  parser.add_argument("--background", type=str, help="背景文件路径")
-  parser.add_argument("--scene", type=str, help="场景类型 (例如: Seesaw, Tennis, Magnetic)")
-  parser.add_argument("--render_output_path", type=str, default="../database/rendered_image.png", help="渲染输出文件路径")
-  parser.add_argument("--save_path", type=str, default="/Users/liu/Desktop/school_academy/Case/Yin/causal_project/Causality-informed-Generation/code1/database/temp.blend", help="保存场景文件路径")
-  arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
-  main(
-      background=arguments.background,
-      scene=arguments.scene,
-      render_output_path=arguments.render_output_path,
-      save_path=arguments.save_path
-  ) 
+  iteration_time = 10_000
+  # 初始化 CSV 文件
+  csv_file = "magnet_scene.csv"
+  with open(csv_file, mode="w", newline="") as file:
+      writer = csv.writer(file)
+      # 写入 CSV 文件头
+      writer.writerow(["iter","3D", "3D_over", "2D", "magnet_direction", "needle_location", 'needle_direction'])
+  background = "./database/blank_background.blend"
+  scene  = "Magnetic"
+  render_output_path = "./database/rendered_images/"
+  for i in tqdm(range(iteration_time), desc="Rendering"):
+    main(
+      background=background,
+      scene=scene,
+      render_output_path=render_output_path,
+      csv_file = csv_file,
+      iter = i
+      )
