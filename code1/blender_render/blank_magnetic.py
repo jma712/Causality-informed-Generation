@@ -8,6 +8,8 @@ import math
 import numpy as np
 from typing import Tuple, Union, Optional
 from dataclasses import dataclass
+import matplotlib.pyplot as plt 
+
 
 @dataclass
 class MagnetInfo:
@@ -55,7 +57,7 @@ def calculate_node_magnetic_info(
     if isinstance(magnet_direction, (int, float)):
         # 如果输入是角度，转换为方向向量
         direction = np.array([np.cos(math.radians(magnet_direction)), np.sin(math.radians(magnet_direction))])
-        print("direction:", direction)
+        print("the direction of the current magnet bar:", direction)
     else:
         # 如果输入是向量，归一化
         direction = np.array(magnet_direction)
@@ -74,6 +76,15 @@ def calculate_node_magnetic_info(
     dist_n = np.linalg.norm(r_n)
     dist_s = np.linalg.norm(r_s)
     
+    
+    print("center: "  + str(center))
+    print("direction of magnet: " + str(direction))
+    print("half_length: " + str(half_length))
+    print("center + direction * half_length = " + str(center + direction * half_length))
+    print(f"north: {north}, south: {south}") # 打印N极和S极位置
+    
+
+    
     # 避免除零错误
     if dist_n < 1e-10 or dist_s < 1e-10:
         field_direction = np.array([0.0, 0.0])
@@ -90,7 +101,8 @@ def calculate_node_magnetic_info(
         else:
             field_direction = field / magnitude
             angle = np.arctan2(field_direction[1], field_direction[0])
-
+    print(f"the angle in {node_position}: ",angle)
+    print('field_direction:',field_direction)
     # 创建结果对象
     result = NodeInfo(
         position=node,
@@ -102,11 +114,11 @@ def calculate_node_magnetic_info(
     # 可视化部分
     if visualize:
         # 如果没有提供ax，创建新的图形
-        if ax is None:
-            fig, ax = plt.subplots(figsize=(10, 10))
+        
+        fig, ax = plt.subplots(figsize=(10, 10))
             
         # 绘制磁铁
-        ax.plot([south[0], north[0]], [south[1], north[1]], 'r-', linewidth=3, label='Magnet')
+        ax.plot([south[0], north[0]], [south[1], north[1]], 'r-', linewidth=4, label='Magnet')
         ax.plot(north[0], north[1], 'ro', markersize=10, label='N pole')
         ax.plot(south[0], south[1], 'bo', markersize=10, label='S pole')
         
@@ -142,8 +154,9 @@ def calculate_node_magnetic_info(
         ax.set_ylim(min(south[1], north[1], node[1]) - margin,
                    max(south[1], north[1], node[1]) + margin)
         
-        if ax is None:
-            plt.show()
+        if ax is not None:
+            # plt.show()
+            plt.savefig('2D_scene.png')
     
     return result
 
@@ -197,6 +210,55 @@ def setting_camera(location, target, scene_bounds=((-30, 30), (-30, 30), (0, 30)
     bpy.context.scene.camera = camera
     print(f"Camera location set to {camera.location}, pointing towards {target}")
 
+def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2):
+    """
+    随机设置相机位置，并确保指定的对象都在视野中。
+    
+    参数：
+    - camera: 要调整的相机对象
+    - object_names: 要包含在视野中的对象名称列表
+    - margin: 视野的边距比例，默认1.2表示多留一些空间
+    """
+    # 获取指定名称的对象
+    objects = [bpy.data.objects.get(name) for name in object_names if bpy.data.objects.get(name)]
+    
+    if len(objects) < len(object_names):
+        print("有一些对象名称在场景中未找到，请检查名称是否正确。")
+        return
+    
+    # 计算这些对象的总体边界框
+    min_corner = Vector((float('inf'), float('inf'), float('inf')))
+    max_corner = Vector((float('-inf'), float('-inf'), float('-inf')))
+    for obj in objects:
+        for vertex in obj.bound_box:
+            world_vertex = obj.matrix_world @ Vector(vertex)
+            min_corner = Vector((min(min_corner[i], world_vertex[i]) for i in range(3)))
+            max_corner = Vector((max(max_corner[i], world_vertex[i]) for i in range(3)))
+    
+    # 计算边界框的中心和尺寸
+    bbox_center = (min_corner + max_corner) / 2
+    bbox_size = max_corner - min_corner
+    max_dim = max(bbox_size) * margin
+
+    # 随机设置相机位置
+    random_distance = max_dim * 1.5  # 确保相机距离足够远
+    random_angle = random.uniform(0, 2 * math.pi)  # 随机角度
+    camera.location = bbox_center + Vector((
+        random_distance * math.cos(random_angle),
+        random_distance * math.sin(random_angle),
+        random.uniform(1, max_dim)  # 随机高度
+    ))
+    
+    # 将相机对准边界框中心
+    direction = ( camera.location-bbox_center).normalized()  # 确保方向是单位向量
+    camera.rotation_euler = direction.to_track_quat('Z', 'Y').to_euler()  # 使用相机的Z轴朝向目标
+
+    # 确保所有对象都在视野内
+    bpy.context.view_layer.objects.active = camera
+    bpy.context.scene.camera = camera
+    bpy.ops.view3d.camera_to_view_selected()
+
+
 def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=0):
     """
     导入指定的 .blend 文件中的所有对象，并调整位置、缩放和旋转方向。
@@ -220,19 +282,23 @@ def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angl
             # 设置位置和缩放
             obj.location = location
             # obj.scale = scale
-            
+            # print(">>>>>>", rotation_angle)
+            # obj.rotation_euler[2] = rotation_angle  # 直接设置 Z 轴的旋转角度
             # 选择对象并应用旋转
             bpy.context.view_layer.objects.active = obj
             bpy.ops.object.select_all(action='DESELECT')
             obj.select_set(True)
             
-            # 使用 bpy.ops.transform.rotate 在 Z 轴上旋转
-            bpy.ops.transform.rotate(
-                value=math.radians(rotation_angle),
-                orient_axis='Z',
-                orient_type='GLOBAL',
-                constraint_axis=(False, False, True)
-            )
+            # Rotate the object along the Z-axis
+            # print(rotation_angle * (3.14159 / 180))
+            # obj.rotation_euler.z = rotation_angle * (3.14159 / 180)
+            # # 使用 bpy.ops.transform.rotate 在 Z 轴上旋转
+    bpy.ops.transform.rotate(
+        value=math.radians(rotation_angle),
+        orient_axis='Z',
+        orient_type='GLOBAL',
+        constraint_axis=(False, False, True)
+      )
     
     print("场景已导入成功！")
     
@@ -403,7 +469,6 @@ def random_point_on_ring(inner_radius, outer_radius):
     """
     # 随机生成一个半径，位于内外半径之间
     radius = random.uniform(inner_radius, outer_radius)
-    print("radius:", radius)
     # 随机生成一个角度
     angle = random.uniform(0, 2 * np.pi)
     
@@ -422,7 +487,7 @@ def main(
     save_path = "../database/modified_scene.blend"
   ):
     clear_scene()
-    # 使用模块化的函数执行完整流程
+
     if 'blank' in background.lower():
       background = "./database/blank_background.blend"
       load_blend_file_backgournd(background)
@@ -430,41 +495,34 @@ def main(
 
     blender = "./database/magnet.blend"
     needle = "./database/compass.blend"
-    random_rotation_angle = 90#random.uniform(0, 360)
-    load_blend_file(blender, location=(0, 0, 0), scale=(3, 3, 3), rotation_angle=random_rotation_angle)
+    random_rotation_angle = 45#random.uniform(0, 360)
+    print(f"rotation_angle of magnet: {random_rotation_angle:.2f}")
+    load_blend_file(blender, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=-random_rotation_angle)
 
 
-    inner_radius = 1.3  # 圆环的内半径
-    outer_radius = 3  # 圆环的外半径
+    inner_radius = 2  # 圆环的内半径
+    outer_radius = 4  # 圆环的外半径
     needle_location = random_point_on_ring(inner_radius, outer_radius)
-    
-    print(f"needle_location[:2]: {needle_location[:2]}")
+    print(f"needle_location is (x-y plane): {needle_location[:2]}")
     result = calculate_node_magnetic_info(
         magnet_center=(0, 0),
         magnet_direction=-random_rotation_angle,
-        magnet_length=2.55,
+        magnet_length=3.9,
         node_position=needle_location[:2],
-        visualize=False
+        visualize=True
     )
-    print(result)
 
-    magnitude = 1.0  # 磁矩的强度
-    # 计算旋转后的磁矩向量
-    print(f"random_rotation_angle: {result.angle_degrees:.2f}")
     rotation_angle = result.angle_degrees
-    magnet_position = np.array([0.0, 0.0, 0.0])  # 条形磁铁的位置
-    load_blend_file(filepath = needle, location = needle_location,rotation_angle=result.angle_degrees)
-    print("磁针的位置：", needle_location)
-    
+    load_blend_file(filepath = needle, location = needle_location, scale=(1, 1, 1),rotation_angle=result.angle_degrees)
+    print("needle direction in x-y plane:", result.field_direction)
+    print("needle position：", needle_location)
     set_render_parameters(output_path=render_output_path)
+    
 
-    target_location = (0, 0, 1)
-    range_min = -15
-    range_max = 15
-    range_max_z = 10
-    range_min_z = 3
-    camera_location = (random.uniform(range_min, range_max), random.uniform(range_min, range_max), random.uniform(range_min_z, range_max_z))
-    setting_camera(camera_location, target_location)
+    bpy.ops.object.camera_add()
+    camera = bpy.context.object
+    fit_camera_to_objects_with_random_position(camera, ["Cylinder.003_CompassNeedleHolder_mat_0", "Object_2"]) 
+    # setting_camera(camera_location, target_location)   
     render_scene()
 
     if save_path:
