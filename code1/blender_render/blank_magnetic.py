@@ -6,6 +6,146 @@ import random
 from mathutils import Vector
 import math
 import numpy as np
+from typing import Tuple, Union, Optional
+from dataclasses import dataclass
+
+@dataclass
+class MagnetInfo:
+    """磁铁信息"""
+    position: np.ndarray  # 中心位置
+    direction: np.ndarray  # S->N 的方向向量
+    length: float  # 长度
+
+@dataclass
+class NodeInfo:
+    """节点信息"""
+    position: np.ndarray  # 节点位置
+    field_direction: np.ndarray  # 磁场方向（单位向量）
+    angle: float  # 与x轴的角度（弧度）
+    angle_degrees: float  # 与x轴的角度（角度）
+
+def calculate_node_magnetic_info(
+    magnet_center: Tuple[float, float],  # 磁铁中心位置
+    magnet_direction: Union[float, Tuple[float, float]],  # 可以是角度(弧度)或方向向量
+    magnet_length: float,  # 磁铁长度
+    node_position: Tuple[float, float],  # 待计算节点位置
+    strength: float = 1.0,  # 磁场强度系数
+    visualize: bool = True,  # 是否显示可视化
+) -> NodeInfo:
+    """
+    计算特定节点在磁场中的信息并可选择性地可视化
+    
+    参数:
+        magnet_center: 磁铁中心位置 (x, y)
+        magnet_direction: 磁铁方向，可以是角度(弧度)或方向向量 (dx, dy)
+        magnet_length: 磁铁长度
+        node_position: 待计算节点位置 (x, y)
+        strength: 磁场强度系数
+        visualize: 是否显示可视化
+        ax: matplotlib axes对象（可选）
+    
+    返回:
+        NodeInfo 对象，包含节点位置和磁场方向信息
+    """
+    # 转换输入为numpy数组
+    center = np.array(magnet_center)
+    node = np.array(node_position)
+    
+    # 处理方向输入
+    if isinstance(magnet_direction, (int, float)):
+        # 如果输入是角度，转换为方向向量
+        direction = np.array([np.cos(math.radians(magnet_direction)), np.sin(math.radians(magnet_direction))])
+        print("direction:", direction)
+    else:
+        # 如果输入是向量，归一化
+        direction = np.array(magnet_direction)
+        direction = direction / np.linalg.norm(direction)
+    
+    # 计算磁铁的N极和S极位置
+    half_length = magnet_length / 2
+    north = center + direction * half_length  # N极
+    south = center - direction * half_length  # S极
+    
+    # 计算点到N极和S极的矢量
+    r_n = node - north
+    r_s = node - south
+    
+    # 计算距离
+    dist_n = np.linalg.norm(r_n)
+    dist_s = np.linalg.norm(r_s)
+    
+    # 避免除零错误
+    if dist_n < 1e-10 or dist_s < 1e-10:
+        field_direction = np.array([0.0, 0.0])
+        angle = 0.0
+    else:
+        # 计算磁场向量
+        field = strength * (r_n / (dist_n ** 3) - r_s / (dist_s ** 3))
+        
+        # 归一化方向向量
+        magnitude = np.linalg.norm(field)
+        if magnitude < 1e-10:
+            field_direction = np.array([0.0, 0.0])
+            angle = 0.0
+        else:
+            field_direction = field / magnitude
+            angle = np.arctan2(field_direction[1], field_direction[0])
+
+    # 创建结果对象
+    result = NodeInfo(
+        position=node,
+        field_direction=field_direction,
+        angle=angle,
+        angle_degrees=np.degrees(angle) % 360
+    )
+    
+    # 可视化部分
+    if visualize:
+        # 如果没有提供ax，创建新的图形
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(10, 10))
+            
+        # 绘制磁铁
+        ax.plot([south[0], north[0]], [south[1], north[1]], 'r-', linewidth=3, label='Magnet')
+        ax.plot(north[0], north[1], 'ro', markersize=10, label='N pole')
+        ax.plot(south[0], south[1], 'bo', markersize=10, label='S pole')
+        
+        # 绘制节点位置
+        ax.plot(node[0], node[1], 'go', markersize=8, label='Node')
+        
+        # 绘制磁场方向
+        if not np.all(field_direction == 0):
+            # 箭头长度设为磁铁长度的1/4
+            arrow_length = magnet_length / 4
+            ax.quiver(node[0], node[1], 
+                     field_direction[0], field_direction[1],
+                     angles='xy', scale_units='xy', scale=1/arrow_length,
+                     color='g', width=0.005, label='Field Direction')
+        
+        # 添加文本信息
+        text_info = f'Angle: {result.angle_degrees:.1f}°'
+        ax.text(node[0], node[1] + magnet_length/8, text_info,
+                horizontalalignment='center', verticalalignment='bottom')
+        
+        # 设置图形属性
+        ax.grid(True)
+        ax.set_aspect('equal')
+        ax.legend()
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_title('Magnetic Field Analysis')
+        
+        # 自动调整坐标轴范围
+        margin = magnet_length
+        ax.set_xlim(min(south[0], north[0], node[0]) - margin,
+                   max(south[0], north[0], node[0]) + margin)
+        ax.set_ylim(min(south[1], north[1], node[1]) - margin,
+                   max(south[1], north[1], node[1]) + margin)
+        
+        if ax is None:
+            plt.show()
+    
+    return result
 
 
 def clear_scene():
@@ -56,8 +196,7 @@ def setting_camera(location, target, scene_bounds=((-30, 30), (-30, 30), (0, 30)
     # 将摄像机设置为当前场景的活动摄像机
     bpy.context.scene.camera = camera
     print(f"Camera location set to {camera.location}, pointing towards {target}")
-    
-    
+
 def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=0):
     """
     导入指定的 .blend 文件中的所有对象，并调整位置、缩放和旋转方向。
@@ -89,7 +228,7 @@ def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angl
             
             # 使用 bpy.ops.transform.rotate 在 Z 轴上旋转
             bpy.ops.transform.rotate(
-                value=rotation_angle,
+                value=math.radians(rotation_angle),
                 orient_axis='Z',
                 orient_type='GLOBAL',
                 constraint_axis=(False, False, True)
@@ -114,7 +253,6 @@ def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_pat
     bpy.context.scene.render.filepath = output_path
     bpy.context.scene.render.image_settings.file_format = file_format
     print("渲染参数已设置。")
- 
 
 def calculate_rotated_magnetic_moment(rotation_axis, rotation_angle, magnitude=1.0):
     """
@@ -206,42 +344,60 @@ def magnetic_needle_direction_xy_plane(m, magnet_position, needle_position):
     
     return needle_direction_xy
 
+# def align_needle_direction(needle_mesh_name, needle_direction_xy):
+#     """
+#     调整磁针的方向，使其与指定方向对齐。
+    
+#     参数:
+#     needle_mesh_name : str
+#         磁针 mesh 的名称。
+#     needle_direction_xy : np.array
+#         目标方向的单位向量，限制在 x-y 平面上。
+#     """
+#     # 获取磁针对象
+#     needle = bpy.data.objects[needle_mesh_name]
+    
+#     # 确保目标方向在 x-y 平面内，并将其归一化
+#     print(">>>>>>")
+#     print(needle_direction_xy)
+#     needle_direction_xy[2] = 0  # 保持 z 分量为 0
+#     needle_direction_xy = needle_direction_xy / np.linalg.norm(needle_direction_xy)  # 归一化
+    
+#     # 计算目标方向与 x 轴之间的夹角
+#     angle = np.arctan2(needle_direction_xy[1], needle_direction_xy[0])  # 返回弧度
+    
+#     # 设置磁针的旋转，使其指向目标方向
+#     # 假设磁针初始方向是沿 x 轴
+#     needle.rotation_euler = (0, 0, angle)  # z 轴上的旋转
+    
+
 def align_needle_direction(needle_mesh_name, needle_direction_xy):
     """
-    调整磁针的方向，使其与指定方向对齐。
+    旋转指定的模型，使其在X-Y平面上对齐到指定角度。
     
     参数:
-    needle_mesh_name : str
-        磁针 mesh 的名称。
-    needle_direction_xy : np.array
-        目标方向的单位向量，限制在 x-y 平面上。
+    - needle_mesh_name: 待操作的模型名称 (字符串)
+    - needle_direction_xy: 旋转角度，以弧度表示（在X-Y平面上）
     """
-    # 获取磁针对象
-    needle = bpy.data.objects[needle_mesh_name]
+    # 获取模型对象
+    needle = bpy.data.objects.get(needle_mesh_name)
+    if needle is None:
+        print(f"模型 '{needle_mesh_name}' 不存在。")
+        return
     
-    # 确保目标方向在 x-y 平面内，并将其归一化
-    needle_direction_xy[2] = 0  # 保持 z 分量为 0
-    needle_direction_xy = needle_direction_xy / np.linalg.norm(needle_direction_xy)  # 归一化
+    # 确保模型的旋转限定在X-Y平面上
+    needle.rotation_euler[2] = needle_direction_xy  # 在Z轴上旋转
     
-    # 计算目标方向与 x 轴之间的夹角
-    angle = np.arctan2(needle_direction_xy[1], needle_direction_xy[0])  # 返回弧度
+    # 更新场景
+    bpy.context.view_layer.update()
+    print(f"模型 '{needle_mesh_name}' 已旋转到角度 {math.degrees(needle_direction_xy):.2f}°")
     
-    # 设置磁针的旋转，使其指向目标方向
-    # 假设磁针初始方向是沿 x 轴
-    needle.rotation_euler = (0, 0, angle)  # z 轴上的旋转
     
-# 示例用法
 def random_point_on_ring(inner_radius, outer_radius):
     """
-    在给定的圆环内随机生成一个点。
-    
-    参数:
     inner_radius : float
-        圆环的内半径。
     outer_radius : float
-        圆环的外半径。
-        
-    返回:
+
     point : tuple
         随机生成的点 (x, y, z)。
     """
@@ -259,8 +415,6 @@ def random_point_on_ring(inner_radius, outer_radius):
     return (x, y, -0.03)
 
 
-
-
 def main(
     background = 'blank',
     scene = 'scene',
@@ -276,27 +430,31 @@ def main(
 
     blender = "./database/magnet.blend"
     needle = "./database/compass.blend"
-    random_rotation_angle = 0#random.uniform(-180, 180)
+    random_rotation_angle = 90#random.uniform(0, 360)
     load_blend_file(blender, location=(0, 0, 0), scale=(3, 3, 3), rotation_angle=random_rotation_angle)
+
 
     inner_radius = 1.3  # 圆环的内半径
     outer_radius = 3  # 圆环的外半径
     needle_location = random_point_on_ring(inner_radius, outer_radius)
-    rotation_axis = np.array([0.0, 0.0, 1.0])  # 假设旋转轴为 z 轴
-    rotation_angle = random_rotation_angle  # 旋转角度，45度
+    
+    print(f"needle_location[:2]: {needle_location[:2]}")
+    result = calculate_node_magnetic_info(
+        magnet_center=(0, 0),
+        magnet_direction=-random_rotation_angle,
+        magnet_length=2.55,
+        node_position=needle_location[:2],
+        visualize=False
+    )
+    print(result)
+
     magnitude = 1.0  # 磁矩的强度
     # 计算旋转后的磁矩向量
-    print("random_rotation_angle:", random_rotation_angle)
-    rotated_m = calculate_rotated_magnetic_moment(rotation_axis, rotation_angle, magnitude)
-    print("旋转后的磁矩向量：", rotated_m)
-    
+    print(f"random_rotation_angle: {result.angle_degrees:.2f}")
+    rotation_angle = result.angle_degrees
     magnet_position = np.array([0.0, 0.0, 0.0])  # 条形磁铁的位置
-    needle_position = needle_location  # 磁针的位置在 x-y 平面上
-    load_blend_file(filepath = needle, location = needle_position)
-    print("磁针的位置：", needle_position)
-    needle_dir_xy = magnetic_needle_direction_xy_plane(rotated_m, magnet_position, needle_position)
-    print("磁针在 x-y 平面的方向：", needle_dir_xy)    
-    # align_needle_direction("Object_2", needle_dir_xy)
+    load_blend_file(filepath = needle, location = needle_location,rotation_angle=result.angle_degrees)
+    print("磁针的位置：", needle_location)
     
     set_render_parameters(output_path=render_output_path)
 
@@ -333,11 +491,7 @@ if __name__ == "__main__":
   parser.add_argument("--scene", type=str, help="场景类型 (例如: Seesaw, Tennis, Magnetic)")
   parser.add_argument("--render_output_path", type=str, default="../database/rendered_image.png", help="渲染输出文件路径")
   parser.add_argument("--save_path", type=str, default="/Users/liu/Desktop/school_academy/Case/Yin/causal_project/Causality-informed-Generation/code1/database/temp.blend", help="保存场景文件路径")
-  # 解析命令行参数
   arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
-  # arguments = parser.parse_args()
-  # 将解析的参数传递给 main 函数
-  # clear_scene()
   main(
       background=arguments.background,
       scene=arguments.scene,
