@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 
 sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")  # 请根据实际路径确认
 from tqdm import tqdm
+
 # 设置颜色管理为标准模式
 bpy.context.scene.view_settings.view_transform = 'Standard'
 bpy.context.scene.display_settings.display_device = 'sRGB'
@@ -511,7 +512,7 @@ def render_scene():
 
 if __name__ == "__main__":
   # 创建 ArgumentParser 对象
-  iteration_time = 10_000
+  iteration_time = 45
   # 初始化 CSV 文件
   csv_file = "magnet_scene.csv"
   with open(csv_file, mode="w", newline="") as file:
