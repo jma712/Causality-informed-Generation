@@ -1,5 +1,8 @@
 import bpy
 import os
+import sys
+sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")
+
 import argparse
 import sys
 import random
@@ -8,11 +11,17 @@ import math
 import numpy as np
 from typing import Tuple, Union, Optional
 from dataclasses import dataclass
-import matplotlib.pyplot as plt 
-from tqdm import tqdm
 from datetime import datetime
 import csv
+import matplotlib.pyplot as plt
 
+sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")  # 请根据实际路径确认
+from tqdm import tqdm
+import gc
+
+# 设置颜色管理为标准模式
+bpy.context.scene.view_settings.view_transform = 'Standard'
+bpy.context.scene.display_settings.display_device = 'sRGB'
 
 @dataclass
 class MagnetInfo:
@@ -293,30 +302,30 @@ def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_pat
     bpy.context.scene.render.image_settings.file_format = file_format
     
     # 使用 Cycles 渲染引擎（更高质量）
-    bpy.context.scene.render.engine = 'CYCLES'
+    #bpy.context.scene.render.engine = 'CYCLES'
     
     # 设置渲染采样（越高质量越好，但时间更长）
-    bpy.context.scene.cycles.samples = samples
+    #bpy.context.scene.cycles.samples = samples
     
     # 启用去噪（推荐用于高质量渲染）
-    bpy.context.scene.cycles.use_denoising = use_denoising
+    #bpy.context.scene.cycles.use_denoising = use_denoising
     
     # 设置设备为 GPU（如果系统有 GPU，推荐使用 GPU 渲染）
     bpy.context.scene.cycles.device = 'GPU'
     
     # 设置透明背景（如果需要）
-    bpy.context.scene.render.film_transparent = use_transparent_bg
+    #bpy.context.scene.render.film_transparent = use_transparent_bg
     
     # 设置光线跟踪反弹次数
-    bpy.context.scene.cycles.max_bounces = 12
-    bpy.context.scene.cycles.diffuse_bounces = 4
-    bpy.context.scene.cycles.glossy_bounces = 4
-    bpy.context.scene.cycles.transmission_bounces = 12
+    bpy.context.scene.cycles.max_bounces = 6
+    bpy.context.scene.cycles.diffuse_bounces = 2
+    bpy.context.scene.cycles.glossy_bounces = 2
+    bpy.context.scene.cycles.transmission_bounces = 6
     bpy.context.scene.cycles.volume_bounces = 2
     
     # 设置光路径采样（可选）
-    bpy.context.scene.cycles.use_adaptive_sampling = True
-    bpy.context.scene.cycles.adaptive_threshold = 0.01
+    #bpy.context.scene.cycles.use_adaptive_sampling = True
+    #bpy.context.scene.cycles.adaptive_threshold = 0.01
     
 
 def calculate_rotated_magnetic_moment(rotation_axis, rotation_angle, magnitude=1.0):
@@ -504,7 +513,7 @@ def render_scene():
 
 if __name__ == "__main__":
   # 创建 ArgumentParser 对象
-  iteration_time = 10_000
+  iteration_time = 45
   # 初始化 CSV 文件
   csv_file = "magnet_scene.csv"
   with open(csv_file, mode="w", newline="") as file:
