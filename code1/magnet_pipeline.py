@@ -511,22 +511,42 @@ def render_scene():
     # print(f"渲染完成，图像已保存到：{bpy.context.scene.render.filepath}")
 
 if __name__ == "__main__":
-  # 创建 ArgumentParser 对象
-  iteration_time = 45
-  # 初始化 CSV 文件
-  csv_file = "magnet_scene.csv"
-  with open(csv_file, mode="w", newline="") as file:
-      writer = csv.writer(file)
-      # 写入 CSV 文件头
-      writer.writerow(["iter","3D", "3D_over", "2D", "magnet_direction", "needle_location", 'needle_direction'])
-  background = "./database/blank_background.blend"
-  scene  = "Magnetic"
-  render_output_path = "./database/rendered_images/"
-  for i in tqdm(range(iteration_time), desc="Rendering"):
-    main(
-      background=background,
-      scene=scene,
-      render_output_path=render_output_path,
-      csv_file = csv_file,
-      iter = i
-      )
+    parser = argparse.ArgumentParser(description="Blender Rendering Script")
+
+    parser.add_argument("--iter", type=int, help="initial number")
+    arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
+
+    iteration_time = 45  # 每次渲染的批次数量
+
+    # CSV 文件路径
+    csv_file = "magnet_scene.csv"
+    
+    # 检查 CSV 文件是否存在，如果不存在则写入文件头
+    try:
+        with open(csv_file, mode="r") as file:
+            file_exists = True
+    except FileNotFoundError:
+        file_exists = False
+
+    # 打开 CSV 文件，追加写入数据
+    with open(csv_file, mode="a", newline="") as file:
+        writer = csv.writer(file)
+        
+        # 如果文件不存在，写入 CSV 文件头
+        if not file_exists:
+            writer.writerow(["iter", "3D", "3D_over", "2D", "magnet_direction", "needle_location", "needle_direction"])
+
+        # 设置背景、场景和渲染输出路径
+        background = "./database/blank_background.blend"
+        scene = "Magnetic"
+        render_output_path = "./database/rendered_images/"
+
+        # 使用起始帧数循环渲染 iteration_time 个批次
+        for i in tqdm(range(arguments.iter, arguments.iter + iteration_time), desc="Rendering"):
+            main(
+                background=background,
+                scene=scene,
+                render_output_path=render_output_path,
+                csv_file=csv_file,
+                iter=i
+            )
