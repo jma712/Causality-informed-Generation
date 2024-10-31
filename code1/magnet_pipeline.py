@@ -274,14 +274,50 @@ def load_blend_file_backgournd(filepath):
             bpy.context.collection.objects.link(obj)
     # print("场景已导入成功！")
 
-def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png"):
-    """设置渲染参数，包括分辨率、格式和输出路径。"""
+# def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png"):
+#     """设置渲染参数，包括分辨率、格式和输出路径。"""
+#     bpy.context.scene.render.resolution_x = resolution[0]
+#     bpy.context.scene.render.resolution_y = resolution[1]
+#     bpy.context.scene.render.resolution_percentage = 100
+#     bpy.context.scene.render.filepath = output_path
+#     bpy.context.scene.render.image_settings.file_format = file_format
+#     print("渲染参数已设置。")
+
+def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png", samples=500, use_denoising=True, use_transparent_bg=False):
+    """设置渲染参数，包括分辨率、格式、输出路径和高质量渲染设置。"""
+    # 设置分辨率和输出路径
     bpy.context.scene.render.resolution_x = resolution[0]
     bpy.context.scene.render.resolution_y = resolution[1]
     bpy.context.scene.render.resolution_percentage = 100
     bpy.context.scene.render.filepath = output_path
     bpy.context.scene.render.image_settings.file_format = file_format
-    print("渲染参数已设置。")
+    
+    # 使用 Cycles 渲染引擎（更高质量）
+    bpy.context.scene.render.engine = 'CYCLES'
+    
+    # 设置渲染采样（越高质量越好，但时间更长）
+    bpy.context.scene.cycles.samples = samples
+    
+    # 启用去噪（推荐用于高质量渲染）
+    bpy.context.scene.cycles.use_denoising = use_denoising
+    
+    # 设置设备为 GPU（如果系统有 GPU，推荐使用 GPU 渲染）
+    bpy.context.scene.cycles.device = 'GPU'
+    
+    # 设置透明背景（如果需要）
+    bpy.context.scene.render.film_transparent = use_transparent_bg
+    
+    # 设置光线跟踪反弹次数
+    bpy.context.scene.cycles.max_bounces = 12
+    bpy.context.scene.cycles.diffuse_bounces = 4
+    bpy.context.scene.cycles.glossy_bounces = 4
+    bpy.context.scene.cycles.transmission_bounces = 12
+    bpy.context.scene.cycles.volume_bounces = 2
+    
+    # 设置光路径采样（可选）
+    bpy.context.scene.cycles.use_adaptive_sampling = True
+    bpy.context.scene.cycles.adaptive_threshold = 0.01
+    
 
 def calculate_rotated_magnetic_moment(rotation_axis, rotation_angle, magnitude=1.0):
     """
@@ -419,8 +455,8 @@ def main(
     
     load_blend_file(blender, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=-random_rotation_angle)
 
-    inner_radius = 2  # 圆环的内半径
-    outer_radius = 4  # 圆环的外半径
+    inner_radius = 2.5  # 圆环的内半径
+    outer_radius = 5  # 圆环的外半径
     needle_location = random_point_on_ring(inner_radius, outer_radius)
     result = calculate_node_magnetic_info(
         magnet_center=(0, 0),
