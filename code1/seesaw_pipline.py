@@ -1,10 +1,27 @@
 import bpy
 import os
+import sys
+sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")
+
 import argparse
 import sys
 import random
 from mathutils import Vector
 import math
+import numpy as np
+from typing import Tuple, Union, Optional
+from dataclasses import dataclass
+from datetime import datetime
+import csv
+import matplotlib.pyplot as plt
+
+sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")  # 请根据实际路径确认
+from tqdm import tqdm
+
+# 设置颜色管理为标准模式
+bpy.context.scene.view_settings.view_transform = 'Standard'
+bpy.context.scene.display_settings.display_device = 'sRGB'
+
 
 def setting_camera(location, target, scene_bounds=((-30, 30), (-30, 30), (0, 30))):
     """
@@ -349,50 +366,54 @@ def add_seesaw(param = None, camera_location = (0, -7, 2), camera_rotation = (1.
       return -1
     lever.rotation_euler[0] = 0
     lever.rotation_euler[1] = angle_radians
-    return 0
+    return param
   
 
 def main(
     background = 'blank',
     scene = 'scene',
-    render_output_path = "../database/rendered_image.png",
-    save_path = "../database/modified_scene.blend"
+    render_output_path = "../database/",
+    save_path = "../database/modified_scene.blend",
+    iteration = 0,
+    csv_file = None
   ):
     clear_scene()
+    current_time = datetime.now()
+    file_name = current_time.strftime("%Y%m%d_%H%M%S")  # 格式化为 YYYYMMDD_HHMMSS
+    file_name = os.path.join(render_output_path, file_name+".png")
     # 使用模块化的函数执行完整流程
     if 'blank' in background.lower():
       background = "./database/blank_background.blend"
     load_blend_file(background)
     # 3. 根据 `scene` 参数添加不同的对象
     if scene.lower() == "seesaw":
-        add_seesaw()
+        param = add_seesaw()
     else:
         print(f"未识别的场景类型: {scene}，跳过特定元素添加。")
 
     # 4. 设置渲染参数
-    set_render_parameters(output_path=render_output_path)
+    set_render_parameters(output_path=file_name)
 
-    target_location = (0, 0, 1)
-    range_min = -15
-    range_max = 15
-    range_max_z = 10
-    range_min_z = 0.5
     bpy.ops.object.camera_add()
     camera = bpy.context.object
     fit_camera_to_objects_with_random_position(camera, ["Lever", "Weight", "Weight.001", "Pivot"]) 
     render_scene()
 
-    if save_path:
-        save_blend_file(save_path)
+    with open(csv_file, mode="a", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow([iter, param["weight_value_l"],  param["weight_value_r"], param["lever_length"]-param["lever_x_offset"],
+                         param["lever_length"] + param["lever_x_offset"], file_name])
 
-def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2):
+
+def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2, fixed=True):
     """
-    随机设置相机位置，并确保指定的对象都在视野中。
+    根据参数设置相机位置，并确保指定的对象都在视野中。
     
     参数：
     - camera: 要调整的相机对象
     - object_names: 要包含在视野中的对象名称列表
     - margin: 视野的边距比例，默认1.2表示多留一些空间
+    - fixed: 是否使用固定位置的相机，如果为True，使用固定位置
     """
     # 获取指定名称的对象
     objects = [bpy.data.objects.get(name) for name in object_names if bpy.data.objects.get(name)]
@@ -415,42 +436,56 @@ def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2)
     bbox_size = max_corner - min_corner
     max_dim = max(bbox_size) * margin
 
-    # 随机设置相机位置
-    random_distance = max_dim * 1.5  # 确保相机距离足够远
-    random_angle = random.uniform(0, 2 * math.pi)  # 随机角度
-    camera.location = bbox_center + Vector((
-        random_distance * math.cos(random_angle),
-        random_distance * math.sin(random_angle),
-        random.uniform(1, max_dim)  # 随机高度
-    ))
-    
-    # 将相机对准边界框中心
-    direction = ( camera.location-bbox_center).normalized()  # 确保方向是单位向量
-    camera.rotation_euler = direction.to_track_quat('Z', 'Y').to_euler()  # 使用相机的Z轴朝向目标
-
-    # 确保所有对象都在视野内
-    bpy.context.view_layer.objects.active = camera
-    bpy.context.scene.camera = camera
-    bpy.ops.view3d.camera_to_view_selected()
-
+    if fixed:
+        # 使用固定位置
+        camera.location = bbox_center + Vector((0, -max_dim * 1.5, max_dim * 0.5))
+    else:
+        # 随机设置相机位置
+        random_distance = max_dim * 1.5  # 确保相机距离足够远
+        random_angle = random.uniform(0, 2 * math.pi)  # 随机角度
+        camera.location = bbox_center + Vector((
+            random_distance * math.cos(random_angle),
+            random_distance * math.sin(random_angle),
+            random.uniform(1, max_dim)  # 随机高度
+        ))
 
 
 if __name__ == "__main__":
-    # 创建 ArgumentParser 对象
     parser = argparse.ArgumentParser(description="Blender Rendering Script")
 
-    parser.add_argument("--background", type=str, help="背景文件路径")
-    parser.add_argument("--scene", type=str, help="场景类型 (例如: Seesaw, Tennis, Magnetic)")
-    parser.add_argument("--render_output_path", type=str, default="../database/rendered_image.png", help="渲染输出文件路径")
-    parser.add_argument("--save_path", type=str, default="/Users/liu/Desktop/school_academy/Case/Yin/causal_project/Causality-informed-Generation/code1/database/temp.blend", help="保存场景文件路径")
-    # 解析命令行参数
+    parser.add_argument("--iter", type=int, help="initial number")
     arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
-    # arguments = parser.parse_args()
-    # 将解析的参数传递给 main 函数
-    # clear_scene()
-    main(
-        background=arguments.background,
-        scene=arguments.scene,
-        render_output_path=arguments.render_output_path,
-        save_path=arguments.save_path
-    ) 
+
+    iteration_time = 45  # 每次渲染的批次数量
+
+    # CSV 文件路径
+    csv_file = "seesaw_scene.csv"
+
+    try:
+        with open(csv_file, mode="r") as file:
+            file_exists = True
+    except FileNotFoundError:
+        file_exists = False
+
+    # 打开 CSV 文件，追加写入数据
+    with open(csv_file, mode="a", newline="") as file:
+        writer = csv.writer(file)
+        
+        # 如果文件不存在，写入 CSV 文件头
+        if not file_exists:
+            writer.writerow(["iter", "left_weight", "right_weight", "left_arm", "right_arm", "images"])
+
+        # 设置背景、场景和渲染输出路径
+        background = "./database/blank_background.blend"
+        scene = "Seesaw"
+        render_output_path = "./database/seesaw_rendered_images/"
+
+        # 使用起始帧数循环渲染 iteration_time 个批次
+        for i in tqdm(range(arguments.iter, arguments.iter + iteration_time), desc="Rendering"):
+            main(
+                background=background,
+                scene=scene,
+                render_output_path=render_output_path,
+                csv_file=csv_file,
+                iter=i
+            )

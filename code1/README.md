@@ -2,7 +2,7 @@
 - [x] Seesaw
 ![seesaw](./database/imgs_UI_output/render_output_Blank_Seesaw.png)
 
-- [ ] Magnet material
+- [x] Magnet material
 ![magnetic](./database/imgs_UI_output/render_output_Blank_Magnetic.png)
 - [ ] prism
 - [ ] reflection
