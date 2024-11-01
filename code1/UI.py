@@ -24,7 +24,8 @@ script_paths = {
     ("Blank", "Seesaw"): "./blender_render/blank_seesaw.py",
     # ("Blank", "Tennis"): "/path_to_scripts/blank_tennis.py",
     ("Blank", "Magnetic"): "./blender_render/blank_magnetic.py",
-    ("Lab", "Seesaw"): "/path_to_scripts/lab_seesaw.py",
+    ("Blank", "Reflection"): "./blender_render/blank_reflection.py",
+    ("Blank", "Projection"): "./blender_render/blank_projection.py",
     # 添加其他组合的脚本路径
 }
 
@@ -94,7 +95,7 @@ if __name__ == "__main__":
   WINDOW_TITLE = "Blender 渲染器"
 
   # 默认图片路径
-  DEFAULT_IMAGE_PATH = "/Users/liu/Desktop/多媒体/image/profile.png"  # 替换为实际路径
+  DEFAULT_IMAGE_PATH = "/Users/liu/Desktop/cwru-sign.jpg"  # 替换为实际路径
 
   # 下拉菜单选项
   BACKGROUND_OPTIONS = ["Blank", "Lab", "Indoor", "Outdoor"]
@@ -128,7 +129,7 @@ if __name__ == "__main__":
       """加载默认图片，如果不存在则返回 None"""
       if os.path.exists(path):
           img = Image.open(path)
-          img.thumbnail((400, 400))
+          img.thumbnail((1280, 628))
           return ImageTk.PhotoImage(img)
       return None
 

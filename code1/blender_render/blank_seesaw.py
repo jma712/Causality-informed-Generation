@@ -377,12 +377,61 @@ def main(
     range_max = 15
     range_max_z = 10
     range_min_z = 0.5
-    camera_location = (random.uniform(range_min, range_max), random.uniform(range_min, range_max), random.uniform(range_min_z, range_max_z))
-    setting_camera(camera_location, target_location)
+    bpy.ops.object.camera_add()
+    camera = bpy.context.object
+    fit_camera_to_objects_with_random_position(camera, ["Lever", "Weight", "Weight.001", "Pivot"]) 
     render_scene()
 
     if save_path:
         save_blend_file(save_path)
+
+def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2):
+    """
+    随机设置相机位置，并确保指定的对象都在视野中。
+    
+    参数：
+    - camera: 要调整的相机对象
+    - object_names: 要包含在视野中的对象名称列表
+    - margin: 视野的边距比例，默认1.2表示多留一些空间
+    """
+    # 获取指定名称的对象
+    objects = [bpy.data.objects.get(name) for name in object_names if bpy.data.objects.get(name)]
+    
+    if len(objects) < len(object_names):
+        print("有一些对象名称在场景中未找到，请检查名称是否正确。")
+        return
+    
+    # 计算这些对象的总体边界框
+    min_corner = Vector((float('inf'), float('inf'), float('inf')))
+    max_corner = Vector((float('-inf'), float('-inf'), float('-inf')))
+    for obj in objects:
+        for vertex in obj.bound_box:
+            world_vertex = obj.matrix_world @ Vector(vertex)
+            min_corner = Vector((min(min_corner[i], world_vertex[i]) for i in range(3)))
+            max_corner = Vector((max(max_corner[i], world_vertex[i]) for i in range(3)))
+    
+    # 计算边界框的中心和尺寸
+    bbox_center = (min_corner + max_corner) / 2
+    bbox_size = max_corner - min_corner
+    max_dim = max(bbox_size) * margin
+
+    # 随机设置相机位置
+    random_distance = max_dim * 1.5  # 确保相机距离足够远
+    random_angle = random.uniform(0, 2 * math.pi)  # 随机角度
+    camera.location = bbox_center + Vector((
+        random_distance * math.cos(random_angle),
+        random_distance * math.sin(random_angle),
+        random.uniform(1, max_dim)  # 随机高度
+    ))
+    
+    # 将相机对准边界框中心
+    direction = ( camera.location-bbox_center).normalized()  # 确保方向是单位向量
+    camera.rotation_euler = direction.to_track_quat('Z', 'Y').to_euler()  # 使用相机的Z轴朝向目标
+
+    # 确保所有对象都在视野内
+    bpy.context.view_layer.objects.active = camera
+    bpy.context.scene.camera = camera
+    bpy.ops.view3d.camera_to_view_selected()
 
 
 
