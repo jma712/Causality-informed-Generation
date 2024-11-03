@@ -10,32 +10,58 @@
 
 1. Hypothetical example with 3 variables:
 
-    variable a = the volume of a ball;  
-    variable b = the volume of the cylinder;  
-    variable c = the tilt angle of the rectangular prism.
+    Variable a = the volume of a ball;  
+    Variable b = the volume of the cylinder;  
+    Variable c = the tilt angle of the rectangular prism.
 
     The causal graph is:  
     <img width="50%" alt="causal_graph_1" src="1.png">
 
 2. Hypothetical example with 4 variables:  
 
-    variable a = the volume of a ball;  
-    variable b = the height of a cylinder;  
-    variable c = the distance between the ball and the cylinder;  
-    varaible d = the cylinder’s height above the ground.  
+    Variable a = the volume of a ball;  
+    Variable b = the height of a cylinder;  
+    Variable c = the distance between the ball and the cylinder;  
+    Variable d = the cylinder’s height above the ground.  
 
-    the causal graph is:  
-    <img width="100%" alt="causal_graph_2" src="2.png">  
+    The causal graph is:  
+    <img width="100%" alt="causal_graph_2" src="2.png">
 
+3. Hypothetical example with 5 variables:  
+
+    Variable a = the volume of a ball;  
+    Variable b = the height of a cylinder;  
+    Variable c = the distance between the ball and the cylinder;  
+    Variable d = the cylinder’s height above the ground;  
+    Variable e = the tilt angle of the cylinder.
+
+    The causal graph is:  
+    <img width="75%" alt="causal_graph_3" src="3.png">
    
-### Noise
+### Noise  
 
-### Linear/nonlinear
+    In the first hypothetical example, the noise e is the height of the ball above the ground.  
+    In the second hypothetical example, the noise e is the volume of the cylinder.  
+    In the third hypothetical example, the noise e is the height of the cylinder above the ground.  
+    
+### Linear/nonlinear  
+    Linear:  
+    In the first hypothetical example, b = 2a; c = 3a + 5b; a = 0.5e.  
+    In the second hypothetical example, b =3a; c = 4a + 3b; d = 7c; a = 0.1e.  
+    In the third hypothetical example, b = 5a; c = 6a + 2b; d = 5c; e = 4d; a = 0.9e.  
+    
+### Background  
 
-### Background
+    Each example offers four environment options:  
 
-### Interventional do()
+    well-lit indoor, well-lit outdoor, dimly-lit indoor, and dimly-lit outdoor.  
 
+### Interventional do()  
+
+    In the first hypothetical example, we can let users to make interventioans do(a = A) and do(b = B).  
+    In the second hypothetical example, we can let users to make interventioans do(a = A), do(b = B) and do(c = C).  
+    In the third hypothetical example, we can let users to make interventioans do(a = A), do(b = B), do(c = C) and do(d = D).
+  
 ## Step 2 SOTA Baselines
 
 ### Methods
