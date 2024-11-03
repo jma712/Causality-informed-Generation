@@ -176,12 +176,12 @@ def create_lever(length=5, width=1, height=0.2, location=(0, 0, 0)):
     # 获取 Principled BSDF 节点
     principled_bsdf = mat.node_tree.nodes.get("Principled BSDF")
     
-    if principled_bsdf:
-        # 设置材质参数，使其更接近木材
-        principled_bsdf.inputs["Base Color"].default_value = (0.5, 0.3, 0.1, 1)  # 棕色
-        principled_bsdf.inputs["Metallic"].default_value = 0.0  # 非金属
-        principled_bsdf.inputs["Specular"].default_value = 0.1  # 低反射
-        principled_bsdf.inputs["Roughness"].default_value = 1  # 增加粗糙度，减少反光
+    # if principled_bsdf:
+    #     # 设置材质参数，使其更接近木材
+    #     principled_bsdf.inputs["Base Color"].default_value = (0.5, 0.3, 0.1, 1)  # 棕色
+    #     principled_bsdf.inputs["Metallic"].default_value = 0.0  # 非金属
+    #     principled_bsdf.inputs["Specular"].default_value = 0.1  # 低反射
+    #     principled_bsdf.inputs["Roughness"].default_value = 1  # 增加粗糙度，减少反光
 
     return lever
   
@@ -374,7 +374,7 @@ def main(
     scene = 'scene',
     render_output_path = "../database/",
     save_path = "../database/modified_scene.blend",
-    iteration = 0,
+    iter = 0,
     csv_file = None
   ):
     clear_scene()
@@ -396,7 +396,8 @@ def main(
 
     bpy.ops.object.camera_add()
     camera = bpy.context.object
-    fit_camera_to_objects_with_random_position(camera, ["Lever", "Weight", "Weight.001", "Pivot"]) 
+    c_position = fit_camera_to_objects_with_random_position(camera, ["Lever", "Weight", "Weight.001", "Pivot"], fixed=True) 
+    # raise RuntimeError()
     render_scene()
 
     with open(csv_file, mode="a", newline="") as file:
@@ -405,15 +406,15 @@ def main(
                          param["lever_length"] + param["lever_x_offset"], file_name])
 
 
-def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2, fixed=True):
+
+def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2, over = False, fixed = False):
     """
-    根据参数设置相机位置，并确保指定的对象都在视野中。
+    随机设置相机位置，并确保指定的对象都在视野中。
     
     参数：
     - camera: 要调整的相机对象
     - object_names: 要包含在视野中的对象名称列表
     - margin: 视野的边距比例，默认1.2表示多留一些空间
-    - fixed: 是否使用固定位置的相机，如果为True，使用固定位置
     """
     # 获取指定名称的对象
     objects = [bpy.data.objects.get(name) for name in object_names if bpy.data.objects.get(name)]
@@ -436,19 +437,50 @@ def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2,
     bbox_size = max_corner - min_corner
     max_dim = max(bbox_size) * margin
 
-    if fixed:
-        # 使用固定位置
-        camera.location = bbox_center + Vector((0, -max_dim * 1.5, max_dim * 0.5))
+    # 随机设置相机位置
+    V = 0
+    random_distance = max_dim * 1.5  # 确保相机距离足够远
+    random_angle = random.uniform(0, 2 * math.pi)  # 随机角度
+    if over:
+      camera.location = Vector((bbox_center.x, bbox_center.y, bbox_center.z + max_dim + 10))
+      
+    elif fixed:
+      # branch = random.choice([1, 2])
+      # if branch == 1:
+      #   V =  Vector((
+      #       random_distance ,
+      #       random_distance ,
+      #       random.uniform(max_dim, max_dim)  # 随机高度
+      #   ))
+      # else:
+      #   V = Vector((
+      #       -random_distance ,
+      #       -random_distance ,
+      #       random.uniform(max_dim, max_dim)  # 随机高度
+      #   ))
+      # camera.location = bbox_center + V
+        # 固定位置：从 y 轴正方向拍摄
+        V= Vector((0, max_dim * 1.5, 0))
+        camera.location = bbox_center + V
+        # 指向对象中心
+        camera.rotation_euler = (math.radians(90), 0, math.radians(180))
     else:
-        # 随机设置相机位置
-        random_distance = max_dim * 1.5  # 确保相机距离足够远
-        random_angle = random.uniform(0, 2 * math.pi)  # 随机角度
-        camera.location = bbox_center + Vector((
-            random_distance * math.cos(random_angle),
-            random_distance * math.sin(random_angle),
-            random.uniform(1, max_dim)  # 随机高度
-        ))
+      
+      camera.location = bbox_center + Vector((
+          random_distance * math.cos(random_angle),
+          random_distance * math.sin(random_angle),
+          random.uniform(1, max_dim)  # 随机高度
+      ))
+      
+    # 将相机对准边界框中心
+    direction = ( camera.location-bbox_center).normalized()  # 确保方向是单位向量
+    camera.rotation_euler = direction.to_track_quat('Z', 'Y').to_euler()  # 使用相机的Z轴朝向目标
 
+    # 确保所有对象都在视野内
+    bpy.context.view_layer.objects.active = camera
+    bpy.context.scene.camera = camera
+    bpy.ops.view3d.camera_to_view_selected()
+    return bbox_center + V
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Blender Rendering Script")
@@ -461,6 +493,16 @@ if __name__ == "__main__":
     # CSV 文件路径
     csv_file = "seesaw_scene.csv"
 
+    # 检查文件是否存在
+    if not os.path.exists(csv_file):
+        init = True
+        # 文件不存在，创建并写入表头
+        with open(csv_file, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["iter", "left_weight", "right_weight", "left_arm", "right_arm", "images"])
+    else:
+        init = False
+
     try:
         with open(csv_file, mode="r") as file:
             file_exists = True
@@ -470,10 +512,7 @@ if __name__ == "__main__":
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        
-        # 如果文件不存在，写入 CSV 文件头
-        if not file_exists:
-            writer.writerow(["iter", "left_weight", "right_weight", "left_arm", "right_arm", "images"])
+
 
         # 设置背景、场景和渲染输出路径
         background = "./database/blank_background.blend"
