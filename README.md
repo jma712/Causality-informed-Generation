@@ -8,6 +8,15 @@
 
 ### Size and graph structure
 
+1. Hypothetical example with 3 variables:
+
+variable a = the height of a ball;  
+variable b = the volume of the cylinder;  
+variable c = the tilt angle of the rectangular prism.
+
+The causal graph is:  
+<img width="124" alt="Screenshot 2024-11-02 at 20 37 16" src="1.png">
+
 ### Noise
 
 ### Linear/nonlinear
