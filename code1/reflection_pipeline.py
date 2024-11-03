@@ -12,7 +12,6 @@ import csv
 sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")  # 请根据实际路径确认
 from tqdm import tqdm
 
-
 def setting_camera(location, target):
     """
     在场景中添加一个相机，并将其位置和指向设置为目标点。
@@ -139,17 +138,7 @@ def clear_scene():
     bpy.ops.object.delete()  # 删除选中的对象
     print("清空场景完成。")
 
-
 def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=0):
-    """
-    导入指定的 .blend 文件中的所有对象，并调整位置、缩放和旋转方向。
-    
-    参数:
-    - filepath: str, .blend 文件的路径
-    - location: tuple, 导入模型的位置 (x, y, z)
-    - scale: tuple, 导入模型的缩放比例 (x, y, z)
-    - rotation_angle: float, 导入模型的旋转角度（以弧度为单位）在Z轴方向
-    """
     # 导入指定的 .blend 文件中的所有对象
     with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
         data_to.objects = data_from.objects  # 选择导入所有对象
@@ -172,7 +161,6 @@ def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angl
         orient_type='GLOBAL',
         constraint_axis=(False, False, True)
       )
-    
     
 def load_blend_file_backgournd(filepath):
     """导入指定的 .blend 文件中的所有对象。"""
@@ -268,9 +256,8 @@ def main(
     file_name = current_time.strftime("%Y%m%d_%H%M%S")  # 格式化为 YYYYMMDD_HHMMSS
     file_name = os.path.join(render_output_path, file_name+".png")
 
-    if 'blank' in background.lower():
-      background = "./database/reflection_space.blend"
-      load_blend_file_backgournd(background)
+    background = "./database/reflection_space.blend"
+    load_blend_file_backgournd(background)
 
 
     set_render_parameters(output_path=file_name, circle = circle)
@@ -290,7 +277,7 @@ def main(
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iter, incident_point,  reflection_point, camera_location,
+        writer.writerow([iteration, incident_point,  reflection_point, camera_location,
                          random_color, file_name])
 
 
