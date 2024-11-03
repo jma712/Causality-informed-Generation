@@ -10,13 +10,24 @@
 
 1. Hypothetical example with 3 variables:
 
-variable a = the height of a ball;  
-variable b = the volume of the cylinder;  
-variable c = the tilt angle of the rectangular prism.
+    variable a = the volume of a ball;  
+    variable b = the volume of the cylinder;  
+    variable c = the tilt angle of the rectangular prism.
 
-The causal graph is:  
-<img width="124" alt="Screenshot 2024-11-02 at 20 37 16" src="1.png">
+    The causal graph is:  
+    <img width="50%" alt="causal_graph_1" src="1.png">
 
+2. Hypothetical example with 4 variables:  
+
+    variable a = the volume of a ball;  
+    variable b = the height of a cylinder;  
+    variable c = the distance between the ball and the cylinder;  
+    varaible d = the cylinder’s height above the ground.  
+
+    the causal graph is:  
+    <img width="100%" alt="causal_graph_2" src="2.png">  
+
+   
 ### Noise
 
 ### Linear/nonlinear
