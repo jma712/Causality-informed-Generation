@@ -31,3 +31,36 @@
 - Linear / Nonlinear
 
     - This is a linear model.
+
+### 2. Prism Refraction and Reflection
+
+- **Size**: 3 variables
+
+    - A: Wave length of the ray.
+    - B: Incident position (coordinate).
+    - C: Incident angle.
+    - D: Position of refracted ray (coordinate).
+
+- **Formula**: 
+
+    ![Prism1](./prism1.jpg)
+
+    ![Prism2](./prism2.jpg)
+
+    Where:
+
+    - $x$ and $y$ are the coordinates of the incident position.
+    - $\theta_1$ is the incident angle.
+    - $n$ is the refractive index determined by $\lambda$.
+
+- **Graph Structure**:
+
+    - A->D, B->D, C->D
+
+- **Noise**:
+
+    - Once D is determined by A, B and C, we can add Gaussian noise on it.
+
+- **Linear / Nonlinear**: 
+
+    - This is a linear model.
