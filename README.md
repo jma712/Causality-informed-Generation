@@ -98,3 +98,65 @@
 - **Linear / Nonlinear**:
 
     - This is a nonlinear model.
+ 
+### 4. Double Slit Experiment
+
+- **Size**: 4 variable
+
+    - A: Distance between the slit and the screen.
+    - B: The wavelength of light.
+    - C: The slit separation.
+    - D: Distance between fringes.
+
+- **Formula**: 
+
+    $$\Delta{y}=\frac{L\lambda}{d}$$
+
+    Where
+
+    - $\Delta{y}$ is D.
+    - $L$ is A.
+    - $\lambda$ is B.
+    - $d$ is C.
+
+- **Graph Structure**:
+
+    - A->D, B->D, C->D
+
+- **Noise**:
+
+    - We can add Gaussian noise on D, once it is determined by A, B and C.
+
+- **Linear / Nonlinear**:
+
+    - This is a nonlinear model.
+
+### 5. Spring and Weight
+
+- **Size**: 3 variables
+
+    - A: Gravity of the mass.
+    - B: Stiffness coefficient of the spring.
+    - C: Displacement produced by the mass.
+
+- **Formula**: 
+
+    $$\Delta{x}=\frac{F}{k}$$
+
+    Where
+
+    - $\Delta{x}$ is C.
+    - $F$ is A.
+    - $k$ is B.
+
+- **Graph Structure**:
+
+    - A->C, B->C
+
+- **Noise**:
+
+    We can add Gaussian noise on C, once it is determined by A and B.
+
+- **Linear / Nonlinear**:
+
+    - This is a nonlinear model.
