@@ -76,6 +76,7 @@
 - **Formula**:
 
     $$\frac{1}{f}=\frac{1}{u}+\frac{1}{v}$$
+  
     $$m=-\frac{v}{u}$$
 
     Where:
@@ -84,7 +85,7 @@
     - $u$ si the distance from the lens to the object.
     - $v$ is the distance from the lens to the image.
     - m is the manification.
-    - "$-$" means the image is inverted.
+    - "-" means the image is inverted.
 
 - **Graph Structure"**:
 
@@ -92,7 +93,7 @@
 
 - **Noise**:
 
-    - We can add Gaussian Noise on B and C.
+    - We can add Gaussian noise on B and C.
 
 - **Linear / Nonlinear**:
 
