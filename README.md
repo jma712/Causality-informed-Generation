@@ -64,3 +64,36 @@
 - **Linear / Nonlinear**: 
 
     - This is a linear model.
+ 
+### 3. Convex Lens
+
+- **Size**: 3 variables
+
+    - A: Distance from the lens to the object.
+    - B: Distance from the lens to the image.
+    - C: Magnification
+
+- **Formula**:
+
+    $$\frac{1}{f}=\frac{1}{u}+\frac{1}{v}$$
+    $$m=-\frac{v}{u}$$
+
+    Where:
+    
+    - $f$ is the focal length.
+    - $u$ si the distance from the lens to the object.
+    - $v$ is the distance from the lens to the image.
+    - m is the manification.
+    - "$-$" means the image is inverted.
+
+- **Graph Structure"**:
+
+    - A->B, B->C, A->C
+
+- **Noise**:
+
+    - We can add Gaussian Noise on B and C.
+
+- **Linear / Nonlinear**:
+
+    - This is a nonlinear model.
