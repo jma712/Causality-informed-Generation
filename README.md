@@ -40,14 +40,14 @@
    
 ### Noise  
 
-    In the first hypothetical example, the noise e is the height of the ball above the ground.  
+    In the first hypothetical example, the noise e is the height of the rectangular prism above the ground.  
     In the second hypothetical example, the noise e is the volume of the cylinder.  
     In the third hypothetical example, the noise e is the height of the cylinder above the ground.  
     
 ### Linear/nonlinear  
     Linear:  
-    In the first hypothetical example, b = 2a; c = 3a + 5b; a = 0.5e.  
-    In the second hypothetical example, b =3a; c = 4a + 3b; d = 7c; a = 0.1e.  
+    In the first hypothetical example, b = 2a; c = 3a + 5b + 0.5e.  
+    In the second hypothetical example, b = 3a; c = 4a + 3b + 9d + 0.7e; a = 3.5d.  
     In the third hypothetical example, b = 5a; c = 6a + 2b; d = 5c; e = 4d; a = 0.9e.  
     
 ### Background  
