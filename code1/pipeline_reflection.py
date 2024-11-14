@@ -252,6 +252,13 @@ def render_scene():
     bpy.ops.render.render(write_still=True)
     print(f"渲染完成，图像已保存到：{bpy.context.scene.render.filepath}")
 
+def save_blend_file(filepath):
+    """保存当前场景为指定的 .blend 文件，直接覆盖原有文件。"""
+    if os.path.exists(filepath):
+        print('remove the existing file')
+        os.remove(filepath)  # 删除已有文件
+    bpy.ops.wm.save_as_mainfile(filepath=filepath)
+    print(f"修改后的场景已保存到：{filepath}")
   
   
 def main(
@@ -268,9 +275,8 @@ def main(
     file_name = current_time.strftime("%Y%m%d_%H%M%S")  # 格式化为 YYYYMMDD_HHMMSS
     file_name = os.path.join(render_output_path, file_name+".png")
 
-    if 'blank' in background.lower():
-      background = "./database/reflection_space.blend"
-      load_blend_file_backgournd(background)
+    background = "./database/reflection_space.blend"
+    load_blend_file_backgournd(background)
 
 
     set_render_parameters(output_path=file_name, circle = circle)
@@ -287,6 +293,9 @@ def main(
     setting_camera(camera_location, target_location)
 
     render_scene()
+    if save_path:
+        save_blend_file("./temp.blend")
+        
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)

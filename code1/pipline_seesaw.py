@@ -406,7 +406,6 @@ def main(
                          param["lever_length"] + param["lever_x_offset"], file_name])
 
 
-
 def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2, over = False, fixed = False):
     """
     随机设置相机位置，并确保指定的对象都在视野中。
