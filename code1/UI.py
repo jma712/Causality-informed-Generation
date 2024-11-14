@@ -26,6 +26,7 @@ script_paths = {
     ("Blank", "Magnetic"): "./blender_render/blank_magnetic.py",
     ("Blank", "Reflection"): "./blender_render/blank_reflection.py",
     ("Blank", "Projection"): "./blender_render/blank_projection.py",
+    ("Blank", "Spring"): "./blender_render/blank_spring.py",
     # 添加其他组合的脚本路径
 }
 
@@ -99,7 +100,7 @@ if __name__ == "__main__":
 
   # 下拉菜单选项
   BACKGROUND_OPTIONS = ["Blank", "Lab", "Indoor", "Outdoor"]
-  SCENE_OPTIONS = ["Seesaw", "Tennis", "Magnetic", 'Scene', "Reflection", "Projection"]
+  SCENE_OPTIONS = ["Seesaw", "Reflection", "Magnetic", "Spring", "Tennis",  'Scene',  "Projection"]
 
 
   # 初始化主窗口
