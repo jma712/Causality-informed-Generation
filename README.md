@@ -40,7 +40,7 @@
    
 ### Noise  
 
-    In the first hypothetical example, the noise e is the height of the rectangular prism above the ground.  
+    In the first hypothetical example, the noise $\epsilon$ is the height of the rectangular prism above the ground.  
     In the second hypothetical example, the noise e is the volume of the cylinder.  
     In the third hypothetical example, the noise e is the height of the cylinder above the ground.  
     
