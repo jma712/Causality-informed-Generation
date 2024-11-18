@@ -243,11 +243,13 @@ def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2)
     # 随机设置相机位置
     random_distance = max_dim * 1.5  # 确保相机距离足够远
     random_angle = random.uniform(0, 2 * math.pi)  # 随机角度
-    camera.location = bbox_center + Vector((
-        random_distance * math.cos(random_angle),
-        random_distance * math.sin(random_angle),
-        random.uniform(1, max_dim)  # 随机高度
-    ))
+    camera.location = (0, 0 , 10)
+    
+    # bbox_center + Vector((
+    #     random_distance * math.cos(random_angle),
+    #     random_distance * math.sin(random_angle),
+    #     random.uniform(1, max_dim)  # 随机高度
+    # ))
     
     # 将相机对准边界框中心
     direction = ( camera.location-bbox_center).normalized()  # 确保方向是单位向量
@@ -516,7 +518,7 @@ def main(
     load_blend_file(filepath = needle, location = needle_location, scale=(1, 1, 1),rotation_angle=result.angle_degrees)
     print("needle direction in x-y plane:", result.field_direction)
     print("needle position：", needle_location)
-    set_render_parameters(output_path=render_output_path)
+    set_render_parameters(resolution=(64,64), output_path=render_output_path)
     
 
     bpy.ops.object.camera_add()
