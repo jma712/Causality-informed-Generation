@@ -48,7 +48,7 @@
     Linear:  
     In the first hypothetical example, b = 2a; c = 3a + 5b + 0.5e.  
     In the second hypothetical example, a = 3.5d; b = 3a; c = 4a + 3b + 9d + 0.7e.  
-    In the third hypothetical example, b = 5a; c = 6a + 2b; d = 5c; e = 7.5a + 4.5c + 4d + 0.9e.  
+    In the third hypothetical example, b = 5a; c = 6a + 2b; d = 2c; e = 7.5a + 4.5c + 4d + 0.9e.  
     
 ### Background  
 
