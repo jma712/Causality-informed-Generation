@@ -88,15 +88,6 @@ def calculate_node_magnetic_info(
     dist_n = np.linalg.norm(r_n)
     dist_s = np.linalg.norm(r_s)
     
-    
-    # print("center: "  + str(center))
-    # print("direction of magnet: " + str(direction))
-    # print("half_length: " + str(half_length))
-    # print("center + direction * half_length = " + str(center + direction * half_length))
-    # print(f"north: {north}, south: {south}") # 打印N极和S极位置
-    
-
-    
     # 避免除零错误
     if dist_n < 1e-10 or dist_s < 1e-10:
         field_direction = np.array([0.0, 0.0])
@@ -444,7 +435,10 @@ def main(
     scene = 'scene',
     render_output_path = "../database/rendered_image.png",
     csv_file = None,
-    iter = 0
+    iter = 0,
+    resolution = 1920,
+    without_2D = True,
+    overlook_only = False 
   ):
     clear_scene()
     current_time = datetime.now()
@@ -466,12 +460,15 @@ def main(
     inner_radius = 2.5  # 圆环的内半径
     outer_radius = 5  # 圆环的外半径
     needle_location = random_point_on_ring(inner_radius, outer_radius)
+    if not without_2D:
+      visualize = False
+      
     result = calculate_node_magnetic_info(
         magnet_center=(0, 0),
         magnet_direction=-random_rotation_angle,
         magnet_length=3.9,
         node_position=needle_location[:2],
-        visualize=True,
+        visualize=visualize,
         png_name = twoD_output_path
     )
 
@@ -479,22 +476,27 @@ def main(
     load_blend_file(filepath = needle, location = needle_location, scale=(1, 1, 1),rotation_angle=result.angle_degrees)
 
 
-    render_3D_output_path = os.path.join(render_output_path, file_name+"_3D.png")
-    set_render_parameters(output_path=render_3D_output_path)
-  
     bpy.ops.object.camera_add()
     camera = bpy.context.object
-    fit_camera_to_objects_with_random_position(camera, ["Cylinder.003_CompassNeedleHolder_mat_0", "Object_2"]) 
-    render_scene()
-    
-    render_3D_over_output_path = os.path.join(render_output_path, file_name+"_Over_3D.png")
+    if not overlook_only:
+      render_3D_output_path = os.path.join(render_output_path, file_name+f"_3D_{resolution}.png")
+      set_render_parameters(output_path=render_3D_output_path, resolution=(resolution, resolution))
+
+      fit_camera_to_objects_with_random_position(camera, ["Cylinder.003_CompassNeedleHolder_mat_0", "Object_2"]) 
+      render_scene()
+      
+    render_3D_over_output_path = os.path.join(render_output_path, file_name+f"_Over_3D_{resolution}.png")
     fit_camera_to_objects_with_random_position(camera, ["Cylinder.003_CompassNeedleHolder_mat_0", "Object_2"], over=True) 
-    set_render_parameters(output_path=render_3D_over_output_path)
+    set_render_parameters(output_path=render_3D_over_output_path, resolution=(resolution, resolution))
     render_scene()
     # 将结果写入 CSV 文件
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iter, render_3D_output_path, render_3D_over_output_path,twoD_output_path, -random_rotation_angle, needle_location, result.field_direction])
+        if without_2D and overlook_only:
+          writer.writerow([iter, render_3D_over_output_path, -random_rotation_angle, needle_location, result.field_direction])
+        # elif without_2D:
+        else:
+          writer.writerow([iter, render_3D_output_path, render_3D_over_output_path,twoD_output_path, -random_rotation_angle, needle_location, result.field_direction])
 
 
 def save_blend_file(filepath):
@@ -514,12 +516,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Blender Rendering Script")
 
     parser.add_argument("--iter", type=int, help="initial number")
+    parser.add_argument("--resolution", type=int, help="resolution of the image")
+    parser.add_argument("--overlook_only", action="store_true", help="only render the overlook image")
     arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
 
     iteration_time = 45  # 每次渲染的批次数量
+    resolution = arguments.resolution
 
     # CSV 文件路径
-    csv_file = "magnet_scene.csv"
+    csv_file = f"magnet_scene_{resolution}.csv"
     
     # 检查 CSV 文件是否存在，如果不存在则写入文件头
     try:
@@ -533,13 +538,13 @@ if __name__ == "__main__":
         writer = csv.writer(file)
         
         # 如果文件不存在，写入 CSV 文件头
-        if not file_exists:
-            writer.writerow(["iter", "3D", "3D_over", "2D", "magnet_direction", "needle_location", "needle_direction"])
+        if not file_exists and parser.overlook_only:
+            writer.writerow(["iter", "3D_over", "magnet_direction", "needle_location", "needle_direction"])
 
         # 设置背景、场景和渲染输出路径
         background = "./database/blank_background.blend"
         scene = "Magnetic"
-        render_output_path = "./database/rendered_images/"
+        render_output_path = f"./database/rendered_images_{resolution}/"
 
         # 使用起始帧数循环渲染 iteration_time 个批次
         for i in tqdm(range(arguments.iter, arguments.iter + iteration_time), desc="Rendering"):
@@ -548,5 +553,6 @@ if __name__ == "__main__":
                 scene=scene,
                 render_output_path=render_output_path,
                 csv_file=csv_file,
-                iter=i
+                iter=i,
+                resolution=resolution
             )
