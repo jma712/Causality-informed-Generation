@@ -88,15 +88,6 @@ def calculate_node_magnetic_info(
     dist_n = np.linalg.norm(r_n)
     dist_s = np.linalg.norm(r_s)
     
-    
-    # print("center: "  + str(center))
-    # print("direction of magnet: " + str(direction))
-    # print("half_length: " + str(half_length))
-    # print("center + direction * half_length = " + str(center + direction * half_length))
-    # print(f"north: {north}, south: {south}") # 打印N极和S极位置
-    
-
-    
     # 避免除零错误
     if dist_n < 1e-10 or dist_s < 1e-10:
         field_direction = np.array([0.0, 0.0])
@@ -113,9 +104,7 @@ def calculate_node_magnetic_info(
         else:
             field_direction = field / magnitude
             angle = np.arctan2(field_direction[1], field_direction[0])
-    # print(f"the angle in {node_position}: ",angle)
-    # print('field_direction:',field_direction)
-    # 创建结果对象
+
     result = NodeInfo(
         position=node,
         field_direction=field_direction,
@@ -232,8 +221,6 @@ def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2,
 
 
 
-
-
 def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=0):
     """
     导入指定的 .blend 文件中的所有对象，并调整位置、缩放和旋转方向。
@@ -280,16 +267,7 @@ def load_blend_file_backgournd(filepath):
     for obj in data_to.objects:
         if obj is not None:
             bpy.context.collection.objects.link(obj)
-    # print("场景已导入成功！")
 
-# def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png"):
-#     """设置渲染参数，包括分辨率、格式和输出路径。"""
-#     bpy.context.scene.render.resolution_x = resolution[0]
-#     bpy.context.scene.render.resolution_y = resolution[1]
-#     bpy.context.scene.render.resolution_percentage = 100
-#     bpy.context.scene.render.filepath = output_path
-#     bpy.context.scene.render.image_settings.file_format = file_format
-#     print("渲染参数已设置。")
 
 def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png", samples=500, use_denoising=True, use_transparent_bg=False):
     """设置渲染参数，包括分辨率、格式、输出路径和高质量渲染设置。"""
@@ -299,17 +277,6 @@ def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_pat
     bpy.context.scene.render.resolution_percentage = 100
     bpy.context.scene.render.filepath = output_path
     bpy.context.scene.render.image_settings.file_format = file_format
-    
-    # 使用 Cycles 渲染引擎（更高质量）
-    #bpy.context.scene.render.engine = 'CYCLES'
-    
-    # 设置渲染采样（越高质量越好，但时间更长）
-    #bpy.context.scene.cycles.samples = samples
-    
-    # 启用去噪（推荐用于高质量渲染）
-    #bpy.context.scene.cycles.use_denoising = use_denoising
-    
-    # 设置设备为 GPU（如果系统有 GPU，推荐使用 GPU 渲染）
     bpy.context.scene.cycles.device = 'GPU'
     
     # 设置透明背景（如果需要）
@@ -444,19 +411,21 @@ def main(
     scene = 'scene',
     render_output_path = "../database/rendered_image.png",
     csv_file = None,
-    iter = 0
+    iter = 0,
+    resolution = 1920,
+    without_2D = False,
+    overlook_only = False 
   ):
     clear_scene()
     current_time = datetime.now()
     file_name = current_time.strftime("%Y%m%d_%H%M%S")  # 格式化为 YYYYMMDD_HHMMSS
     twoD_output_path = os.path.join(render_output_path, file_name+"_2D.png")
     if 'blank' in background.lower():
-      background = "./database/blank_background.blend"
+      background = "./database/background_magnet.blend"
       load_blend_file_backgournd(background)
 
-
-    blender = "./database/magnet.blend"
-    needle = "./database/compass.blend"
+    blender = "/home/ulab/dxl952/Causal_project/github/Causality-informed-Generation/code1/database/magnet/magnet.blend"
+    needle = "/home/ulab/dxl952/Causal_project/github/Causality-informed-Generation/code1/database/compass/compass.blend"
     random_rotation_angle = random.uniform(0, 360)
     
     # print(f"rotation_angle of magnet: {random_rotation_angle:.2f}")
@@ -466,35 +435,47 @@ def main(
     inner_radius = 2.5  # 圆环的内半径
     outer_radius = 5  # 圆环的外半径
     needle_location = random_point_on_ring(inner_radius, outer_radius)
+    visualize = False
+    if not without_2D:
+      visualize = True
+      
     result = calculate_node_magnetic_info(
         magnet_center=(0, 0),
         magnet_direction=-random_rotation_angle,
         magnet_length=3.9,
         node_position=needle_location[:2],
-        visualize=True,
+        visualize=visualize,
         png_name = twoD_output_path
     )
-
+   
     rotation_angle = result.angle_degrees
     load_blend_file(filepath = needle, location = needle_location, scale=(1, 1, 1),rotation_angle=result.angle_degrees)
 
-
-    render_3D_output_path = os.path.join(render_output_path, file_name+"_3D.png")
-    set_render_parameters(output_path=render_3D_output_path)
-  
+    reload_dynamic_textures()
     bpy.ops.object.camera_add()
     camera = bpy.context.object
-    fit_camera_to_objects_with_random_position(camera, ["Cylinder.003_CompassNeedleHolder_mat_0", "Object_2"]) 
+    
+    if not overlook_only:
+      render_3D_output_path = os.path.join(render_output_path, file_name+f"_3D_{resolution}.png")
+      set_render_parameters(output_path=render_3D_output_path, resolution=(resolution, resolution))
+      fit_camera_to_objects_with_random_position(camera, ["Cylinder.003_CompassNeedleHolder_mat_0", "Object_2"]) 
+      render_scene()
+      
+    render_3D_over_output_path = os.path.join(render_output_path, file_name+f"_Over_3D_{resolution}p.png")
+    # fit_camera_to_objects_with_random_position(camera, ["Cylinder.003_CompassNeedleHolder_mat_0", "Object_2"], over=True) 
+    fit_camera_to_objects_with_random_position(camera, [ "Object_2"], over=True) 
+    set_render_parameters(output_path=render_3D_over_output_path, resolution=(resolution, resolution))
+    # save_blend_file("./debug.blend")
     render_scene()
     
-    render_3D_over_output_path = os.path.join(render_output_path, file_name+"_Over_3D.png")
-    fit_camera_to_objects_with_random_position(camera, ["Cylinder.003_CompassNeedleHolder_mat_0", "Object_2"], over=True) 
-    set_render_parameters(output_path=render_3D_over_output_path)
-    render_scene()
     # 将结果写入 CSV 文件
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iter, render_3D_output_path, render_3D_over_output_path,twoD_output_path, -random_rotation_angle, needle_location, result.field_direction])
+        if without_2D and overlook_only:
+          writer.writerow([iter, render_3D_over_output_path, -random_rotation_angle, needle_location, result.field_direction])
+        # elif without_2D:
+        else:
+          writer.writerow([iter, render_3D_output_path, render_3D_over_output_path,twoD_output_path, -random_rotation_angle, needle_location, result.field_direction])
 
 
 def save_blend_file(filepath):
@@ -507,21 +488,40 @@ def save_blend_file(filepath):
 
 def render_scene():
     """执行渲染并保存图像。"""
+    bpy.context.preferences.addons['cycles'].preferences.compute_device_type = 'OPTIX'  # 可选 'CUDA'
+    bpy.context.scene.cycles.device = 'GPU'
     bpy.ops.render.render(write_still=True)
     # print(f"渲染完成，图像已保存到：{bpy.context.scene.render.filepath}")
+
+def reload_dynamic_textures():
+    """
+    Reload dynamic textures from all materials.
+    """
+    for mat in bpy.data.materials:
+        if mat.use_nodes:
+            for node in mat.node_tree.nodes:
+                if node.type == 'TEX_IMAGE' and node.image:
+                    node.image.reload()
+                    print(f"Reloaded texture: {node.image.name}")
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Blender Rendering Script")
 
     parser.add_argument("--iter", type=int, help="initial number")
+    parser.add_argument("--resolution", type=int, help="resolution of the image")
+    parser.add_argument("--overlook_only", action="store_true", help="only render the overlook image")
+    parser.add_argument("--without_2D", action="store_true", help="whether use 2D figure")
     arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
 
     iteration_time = 45  # 每次渲染的批次数量
+    resolution = arguments.resolution
 
     # CSV 文件路径
-    csv_file = "magnet_scene.csv"
+    scene = "Magnetic"
+    csv_file = f"./database/rendered_{scene.lower()}_{resolution}/magnet_scene_{resolution}.csv"
     
-    # 检查 CSV 文件是否存在，如果不存在则写入文件头
     try:
         with open(csv_file, mode="r") as file:
             file_exists = True
@@ -533,13 +533,13 @@ if __name__ == "__main__":
         writer = csv.writer(file)
         
         # 如果文件不存在，写入 CSV 文件头
-        if not file_exists:
-            writer.writerow(["iter", "3D", "3D_over", "2D", "magnet_direction", "needle_location", "needle_direction"])
+        if not file_exists and arguments.overlook_only:
+            writer.writerow(["iter", "3D_over", "magnet_direction", "needle_location", "needle_direction"])
 
         # 设置背景、场景和渲染输出路径
         background = "./database/blank_background.blend"
-        scene = "Magnetic"
-        render_output_path = "./database/rendered_images/"
+
+        render_output_path = f"./database/rendered_{scene.lower()}_{resolution}/"
 
         # 使用起始帧数循环渲染 iteration_time 个批次
         for i in tqdm(range(arguments.iter, arguments.iter + iteration_time), desc="Rendering"):
@@ -548,5 +548,8 @@ if __name__ == "__main__":
                 scene=scene,
                 render_output_path=render_output_path,
                 csv_file=csv_file,
-                iter=i
+                iter=i,
+                resolution=resolution,
+                without_2D = arguments.without_2D,
+                overlook_only= arguments.overlook_only
             )
