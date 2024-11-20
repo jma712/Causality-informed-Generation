@@ -8,19 +8,20 @@ import bpy
 from mathutils import Vector
 from mathutils import Vector, Matrix
 
-sys.path.append(os.path.abspath('/Users/liu/Desktop/school_academy/Case/Yin/causal_project/Causality-informed-Generation/code1'))
+sys.path.append(os.path.abspath('/home/ulab/dxl952/Causal_project/github/Causality-informed-Generation/code1'))
 from blender_render import clear_scene, disable_shadows_for_render, load_blend_file_backgournd, set_render_parameters, \
 move_object_to_location, render_scene, setting_camera, save_blend_file,create_rectangular_prism, rotate_object_around_edge, load_blend_file, rotate_object_y_axis_by_name
-
-
-
 
 
 def main(
     background = 'blank',
     scene = 'scene',
     render_output_path = "../database/rendered_image.png",
-    save_path = "../database/modified_scene.blend"
+    save_path = "../database/modified_scene.blend",
+    csv_file= None,     
+    iteration= 0,
+    resolution = None,
+    with_noise = True
   ):
     """
     In the first hypothetical example, the noise e is the height of the rectangular prism above the ground.  
@@ -40,10 +41,7 @@ def main(
       background = "./database/blank_background_spring.blend"
       load_blend_file_backgournd(background)
 
-    set_render_parameters(output_path=render_output_path)
-
-    
-    # move_object_to_location("Weight_Cube", (0, 0, high*scale_factor+z/2))
+    set_render_parameters(output_path=render_output_path, resolution=(resolution, resolution))
     
     # randomly generate r from 0.5 to 15
     r = random.uniform(0.1, 0.9)
@@ -51,7 +49,7 @@ def main(
     ball_v = 4/3 * math.pi * r**3
     cylinder_v = 2 * ball_v
     # noise e is the height of the rectangular prism above the ground
-    e = random.uniform(0, 0.2) # noise e is the height of the rectangular prism above the ground
+    e = random.uniform(0, 0.2) if with_noise else 0  # noise e is the height of the rectangular prism above the ground
     #  tilt angle of the rectangular prism
     angle = 3*ball_v + 5*cylinder_v + 0.5*e  
     
@@ -62,62 +60,22 @@ def main(
     high_cylinder = 2*cylinder_v/(math.pi*r_cylinder**2)
     bpy.ops.mesh.primitive_cylinder_add(radius=r_cylinder, depth=high_cylinder, location=(r + r_cylinder + 0.2, 0, high_cylinder/2))
     
-    obj = load_blend_file('/Users/liu/Desktop/school_academy/Case/Yin/causal_project/Causality-informed-Generation/code1/database/rect_hyp.blend', 
+    obj = load_blend_file('./database/rect_hyp.blend', 
                     location=(-r - 0.8 - 0.2, 0, e), scale=(1, 1, 1), rotation_angle=0)
     
     rotate_object_y_axis_by_name('rect', angle)
     
-    dic = { 'volume_ball': ball_v, 'volume_cylinder': cylinder_v, 'height_prism': e, 'tilt_angle': angle }
     target_location = (0, 0, 3.3)
     camera_location = (random.uniform(-0, 0), random.uniform(23, 23), random.uniform(3, 3))
     setting_camera(camera_location, target_location)
     render_scene()
     
-    save_blend_file(save_path)
-    return dic
-  
-def main(
-    background = 'blank',
-    scene = 'scene',
-    render_output_path = "../database/rendered_image.png",
-    save_path = "../database/modified_scene.blend",
-    csv_file = None,
-    iteration = 0,
-    circle = False,
-    resolution = 128
-  ):
-    clear_scene()
-    current_time = datetime.now()
-    file_name = current_time.strftime("%Y%m%d_%H%M%S")  # 格式化为 YYYYMMDD_HHMMSS
-    file_name = os.path.join(render_output_path, file_name+".png")
-
-    background = "./database/reflection_space.blend"
-    load_blend_file_backgournd(background)
-
-
-    set_render_parameters(output_path=file_name, circle = circle, resolution=(resolution, resolution))
-    incident_point = generate_random_coordinates()
-    reflection_point = calculate_reflection_vector(incident_point)
-    random_color = (random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1), 1)  # 随机 RGB，A 设置为 1
-    incident_beam = create_laser_beam(name = "IncidentBeam", color = random_color)
-    reflect_beam = create_laser_beam(name = "ReflectBeam", color = random_color)
-    place_and_align_cylinder(incident_beam, incident_point)
-    place_and_align_cylinder(reflect_beam, reflection_point)
-    camera_location = (random.uniform(-0, 0), random.uniform(10, 10), random.uniform(2, 2))
-
-    target_location = (0, 0, 1)
-    setting_camera(camera_location, target_location)
-
-    render_scene()
-    if save_path:
-        save_blend_file("./temp.blend")
-        
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iteration, incident_point,  reflection_point, camera_location,
-                         random_color, file_name])
-
+        writer.writerow([iteration, ball_v, cylinder_v, e, angle ])
+    
+  
 
 
 if __name__ == "__main__":
@@ -138,31 +96,22 @@ if __name__ == "__main__":
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
-        init = True
-        # 文件不存在，创建并写入表头
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["iter", "incident_point", "reflection_point", "camera_location", "color", "images"])
-    else:
-        init = False
+            writer.writerow(["iter", 'volume_ball', 'volume_cylinder', 'height_prism', 'tilt_angle' ])
 
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-
-        # 设置背景、场景和渲染输出路径
-        background = "./database/reflection_space.blend"
         scene = "H3"
         render_output_path = f"./database/rendered_h3_{resolution}/"
 
         # 使用起始帧数循环渲染 iteration_time 个批次
         for i in tqdm(range(arguments.iter, arguments.iter + iteration_time), desc="Rendering"):
             main(
-                background=background,
                 scene=scene,
                 render_output_path=render_output_path,
                 csv_file=csv_file,
                 iteration=i,
-                circle = arguments.circle,
                 resolution = resolution
             )
