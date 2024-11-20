@@ -12,7 +12,6 @@ import csv
 sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")  # 请根据实际路径确认
 from tqdm import tqdm
 
-
 def setting_camera(location, target):
     """
     在场景中添加一个相机，并将其位置和指向设置为目标点。
@@ -85,8 +84,8 @@ def create_laser_beam(laser_length=10, name = "LaserBeam", color = (1.0, 0, 0, 1
     # 禁用光源的阴影
     # light.data.use_shadow = False  # 设置光源不产生阴影
 
-    bpy.context.scene.render.resolution_x = 1920
-    bpy.context.scene.render.resolution_y = 1080
+    # bpy.context.scene.render.resolution_x = 1920
+    # bpy.context.scene.render.resolution_y = 1080
 
     return laser_beam
 
@@ -139,17 +138,7 @@ def clear_scene():
     bpy.ops.object.delete()  # 删除选中的对象
     print("清空场景完成。")
 
-
 def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=0):
-    """
-    导入指定的 .blend 文件中的所有对象，并调整位置、缩放和旋转方向。
-    
-    参数:
-    - filepath: str, .blend 文件的路径
-    - location: tuple, 导入模型的位置 (x, y, z)
-    - scale: tuple, 导入模型的缩放比例 (x, y, z)
-    - rotation_angle: float, 导入模型的旋转角度（以弧度为单位）在Z轴方向
-    """
     # 导入指定的 .blend 文件中的所有对象
     with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
         data_to.objects = data_from.objects  # 选择导入所有对象
@@ -172,8 +161,9 @@ def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angl
         orient_type='GLOBAL',
         constraint_axis=(False, False, True)
       )
-    
-    
+   
+
+
 def load_blend_file_backgournd(filepath):
     """导入指定的 .blend 文件中的所有对象。"""
     with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
@@ -190,11 +180,25 @@ def set_render_parameters(resolution=(1920, 1080), file_format='PNG',
     bpy.context.scene.render.resolution_percentage = 100
     bpy.context.scene.render.filepath = output_path
     bpy.context.scene.render.image_settings.file_format = file_format
+    
     if circle:
+      # 检查并启用 Cycles 插件
+      if not bpy.context.preferences.addons.get("cycles"):
+          bpy.ops.preferences.addon_enable(module="cycles")
+          
       bpy.context.scene.render.engine = 'CYCLES'
-      bpy.context.scene.render.resolution_percentage = 50
-      bpy.context.scene.render.resolution_x = 1920/2
-      bpy.context.scene.render.resolution_y = 1080/2
+      bpy.context.scene.render.resolution_percentage = 60
+      bpy.context.scene.render.resolution_x = int(1920/4)
+      bpy.context.scene.render.resolution_y = int(1080/4)
+      # 设置渲染设备为 GPU
+      bpy.context.preferences.addons['cycles'].preferences.compute_device_type = 'CUDA'  # 使用 CUDA，如果是 RTX 卡可以改为 'OPTIX'
+      bpy.context.scene.cycles.device = 'GPU'
+
+      # 启用所有可用的 GPU 设备
+      for device in bpy.context.preferences.addons['cycles'].preferences.devices:
+          device.use = True
+      print("当前渲染设备:", bpy.context.scene.cycles.device)
+            
       
       
 
@@ -246,11 +250,29 @@ def generate_random_coordinates():
     z = np.random.uniform(1, 1) 
     return x, y, z
 
+def setup_gpu_rendering():
+    """设置 GPU 渲染选项。"""
+    bpy.context.scene.render.engine = 'CYCLES'  # 使用 Cycles 渲染引擎
+    bpy.context.preferences.addons['cycles'].preferences.compute_device_type = 'CUDA'  # 或 'OPTIX'，根据显卡类型
+    bpy.context.scene.cycles.device = 'GPU'  # 设置渲染设备为 GPU
+
+    # 启用所有可用的 GPU 设备
+    for device in bpy.context.preferences.addons['cycles'].preferences.devices:
+        device.use = True
 
 def render_scene():
     """执行渲染并保存图像。"""
+    # 设置 GPU 渲染
+    # setup_gpu_rendering()
+    
+    # 执行渲染
     bpy.ops.render.render(write_still=True)
     print(f"渲染完成，图像已保存到：{bpy.context.scene.render.filepath}")
+
+# def render_scene():
+#     """执行渲染并保存图像。"""
+#     bpy.ops.render.render(write_still=True)
+#     print(f"渲染完成，图像已保存到：{bpy.context.scene.render.filepath}")
 
 def save_blend_file(filepath):
     """保存当前场景为指定的 .blend 文件，直接覆盖原有文件。"""
@@ -269,6 +291,7 @@ def main(
     csv_file = None,
     iteration = 0,
     circle = False,
+    resolution = 128
   ):
     clear_scene()
     current_time = datetime.now()
@@ -279,7 +302,7 @@ def main(
     load_blend_file_backgournd(background)
 
 
-    set_render_parameters(output_path=file_name, circle = circle)
+    set_render_parameters(output_path=file_name, circle = circle, resolution=(resolution, resolution))
     incident_point = generate_random_coordinates()
     reflection_point = calculate_reflection_vector(incident_point)
     random_color = (random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1), 1)  # 随机 RGB，A 设置为 1
@@ -299,7 +322,7 @@ def main(
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iter, incident_point,  reflection_point, camera_location,
+        writer.writerow([iteration, incident_point,  reflection_point, camera_location,
                          random_color, file_name])
 
 
@@ -309,15 +332,17 @@ if __name__ == "__main__":
 
     parser.add_argument("--iter", type=int, help="initial number")
     parser.add_argument('--circle', action='store_true', help="A boolean flag argument")
+    parser.add_argument("--size", type=int, help="size of each iteration")
+    parser.add_argument('--resolution', type=int, help="resolution of the image")
 
     arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
-
-    iteration_time = 45  # 每次渲染的批次数量
+    resolution =  arguments.resolution
+    iteration_time = arguments.size  # 每次渲染的批次数量
 
     # CSV 文件路径
-    csv_file = "reflection_scene.csv"
+    csv_file = f"./database/rendered_reflection_{resolution}/reflection_scene_{resolution}P.csv"
     if arguments.circle:
-      csv_file = "refleciton_scene_circle.csv"
+      csv_file = f"./database/rendered_reflection_{resolution}/refleciton_scene_circle_{resolution}P.csv"
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
@@ -329,31 +354,16 @@ if __name__ == "__main__":
     else:
         init = False
 
-    try:
-        with open(csv_file, mode="r") as file:
-            file_exists = True
-    except FileNotFoundError:
-        file_exists = False
-
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-
-
-    # 打开 CSV 文件，追加写入数据
-    with open(csv_file, mode="a", newline="") as file:
-        writer = csv.writer(file)
-        
-        # 如果文件不存在，写入 CSV 文件头
-        if not file_exists:
-            writer.writerow(["iter", "left_weight", "right_weight", "left_arm", "right_arm", "images"])
 
         # 设置背景、场景和渲染输出路径
         background = "./database/reflection_space.blend"
         scene = "Reflection"
-        render_output_path = "./database/reflection_rendered_images/"
+        render_output_path = f"./database/rendered_reflection_{resolution}/"
         if arguments.circle:
-          render_output_path = './database/reflection_rendered_image_circle/'
+          render_output_path = f'./database/rendered_reflection_circle_{resolution}/'
 
         # 使用起始帧数循环渲染 iteration_time 个批次
         for i in tqdm(range(arguments.iter, arguments.iter + iteration_time), desc="Rendering"):
@@ -363,5 +373,6 @@ if __name__ == "__main__":
                 render_output_path=render_output_path,
                 csv_file=csv_file,
                 iteration=i,
-                circle = arguments.circle
+                circle = arguments.circle,
+                resolution = resolution
             )
