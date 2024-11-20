@@ -222,9 +222,6 @@ def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2,
     bpy.ops.view3d.camera_to_view_selected()
 
 
-
-
-
 def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=0):
     """
     导入指定的 .blend 文件中的所有对象，并调整位置、缩放和旋转方向。
@@ -272,15 +269,6 @@ def load_blend_file_backgournd(filepath):
         if obj is not None:
             bpy.context.collection.objects.link(obj)
     # print("场景已导入成功！")
-
-# def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png"):
-#     """设置渲染参数，包括分辨率、格式和输出路径。"""
-#     bpy.context.scene.render.resolution_x = resolution[0]
-#     bpy.context.scene.render.resolution_y = resolution[1]
-#     bpy.context.scene.render.resolution_percentage = 100
-#     bpy.context.scene.render.filepath = output_path
-#     bpy.context.scene.render.image_settings.file_format = file_format
-#     print("渲染参数已设置。")
 
 def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png", samples=500, use_denoising=True, use_transparent_bg=False):
     """设置渲染参数，包括分辨率、格式、输出路径和高质量渲染设置。"""
@@ -371,7 +359,6 @@ def magnetic_field_at_position(m, r_dipole_to_observation, mu_0=4 * np.pi * 1e-7
     r_magnitude = np.linalg.norm(r_dipole_to_observation)  # 位置向量的模
     r_unit = r_dipole_to_observation / r_magnitude  # 位置向量的单位向量
     
-    # 计算磁场 B 的各部分
     term1 = 3 * r_unit * np.dot(m, r_unit) / r_magnitude**3
     term2 = m / r_magnitude**3
     B = mu_0 / (4 * np.pi) * (term1 - term2)
