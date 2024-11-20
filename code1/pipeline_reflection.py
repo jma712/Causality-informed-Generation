@@ -291,6 +291,7 @@ def main(
     csv_file = None,
     iteration = 0,
     circle = False,
+    resolution = 128
   ):
     clear_scene()
     current_time = datetime.now()
@@ -301,7 +302,7 @@ def main(
     load_blend_file_backgournd(background)
 
 
-    set_render_parameters(output_path=file_name, circle = circle)
+    set_render_parameters(output_path=file_name, circle = circle, resolution=(resolution, resolution))
     incident_point = generate_random_coordinates()
     reflection_point = calculate_reflection_vector(incident_point)
     random_color = (random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1), 1)  # 随机 RGB，A 设置为 1
@@ -331,15 +332,17 @@ if __name__ == "__main__":
 
     parser.add_argument("--iter", type=int, help="initial number")
     parser.add_argument('--circle', action='store_true', help="A boolean flag argument")
+    parser.add_argument("--size", type=int, help="size of each iteration")
+    parser.add_argument('--resolution', type=int, help="resolution of the image")
 
     arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
-
-    iteration_time = 45  # 每次渲染的批次数量
+    resolution =  arguments.resolution
+    iteration_time = arguments.size  # 每次渲染的批次数量
 
     # CSV 文件路径
-    csv_file = "reflection_scene.csv"
+    csv_file = f"./database/rendered_reflection_{resolution}/reflection_scene_{resolution}P.csv"
     if arguments.circle:
-      csv_file = "refleciton_scene_circle.csv"
+      csv_file = f"./database/rendered_reflection_{resolution}/refleciton_scene_circle_{resolution}P.csv"
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
@@ -351,31 +354,16 @@ if __name__ == "__main__":
     else:
         init = False
 
-    try:
-        with open(csv_file, mode="r") as file:
-            file_exists = True
-    except FileNotFoundError:
-        file_exists = False
-
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-
-
-    # 打开 CSV 文件，追加写入数据
-    with open(csv_file, mode="a", newline="") as file:
-        writer = csv.writer(file)
-        
-        # 如果文件不存在，写入 CSV 文件头
-        if not file_exists:
-            writer.writerow(["iter", "left_weight", "right_weight", "left_arm", "right_arm", "images"])
 
         # 设置背景、场景和渲染输出路径
         background = "./database/reflection_space.blend"
         scene = "Reflection"
-        render_output_path = "./database/reflection_rendered_images/"
+        render_output_path = f"./database/rendered_reflection_{resolution}/"
         if arguments.circle:
-          render_output_path = './database/reflection_rendered_image_circle/'
+          render_output_path = f'./database/rendered_reflection_circle_{resolution}/'
 
         # 使用起始帧数循环渲染 iteration_time 个批次
         for i in tqdm(range(arguments.iter, arguments.iter + iteration_time), desc="Rendering"):
@@ -385,5 +373,6 @@ if __name__ == "__main__":
                 render_output_path=render_output_path,
                 csv_file=csv_file,
                 iteration=i,
-                circle = arguments.circle
+                circle = arguments.circle,
+                resolution = resolution
             )

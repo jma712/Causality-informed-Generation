@@ -375,24 +375,22 @@ def main(
     render_output_path = "../database/",
     save_path = "../database/modified_scene.blend",
     iter = 0,
-    csv_file = None
+    csv_file = None,
+    resolution = 128
   ):
     clear_scene()
     current_time = datetime.now()
     file_name = current_time.strftime("%Y%m%d_%H%M%S")  # 格式化为 YYYYMMDD_HHMMSS
     file_name = os.path.join(render_output_path, file_name+".png")
-    # 使用模块化的函数执行完整流程
     if 'blank' in background.lower():
       background = "./database/blank_background.blend"
     load_blend_file(background)
-    # 3. 根据 `scene` 参数添加不同的对象
     if scene.lower() == "seesaw":
         param = add_seesaw()
     else:
         print(f"未识别的场景类型: {scene}，跳过特定元素添加。")
 
-    # 4. 设置渲染参数
-    set_render_parameters(output_path=file_name)
+    set_render_parameters(output_path=file_name, resolution=(resolution, resolution))
 
     bpy.ops.object.camera_add()
     camera = bpy.context.object
@@ -403,7 +401,7 @@ def main(
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
         writer.writerow([iter, param["weight_value_l"],  param["weight_value_r"], param["lever_length"]-param["lever_x_offset"],
-                         param["lever_length"] + param["lever_x_offset"], file_name])
+                         param["lever_length"] + param["lever_x_offset"], param['result'], file_name])
 
 
 def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2, over = False, fixed = False):
@@ -485,20 +483,25 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Blender Rendering Script")
 
     parser.add_argument("--iter", type=int, help="initial number")
+    parser.add_argument("--resoluation", type=int, default=128, help="resolution of the image")
+    parser.add_argument("--size_of_iteration", '-S', type=int, help="the size of each iteration")
     arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
-
-    iteration_time = 45  # 每次渲染的批次数量
+    
+    iteration_time =  arguments.size_of_iteration # 每次渲染的批次数量
 
     # CSV 文件路径
-    csv_file = "seesaw_scene.csv"
+    resolution = arguments.resoluation
+    csv_file = f"./database/rendered_seesaw_{resolution}/seesaw_scene_{resolution}P.csv"
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
         init = True
         # 文件不存在，创建并写入表头
+        import os
+        print(os.getcwd())
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["iter", "left_weight", "right_weight", "left_arm", "right_arm", "images"])
+            writer.writerow(["iter", "left_weight", "right_weight", "left_arm", "right_arm", 'result(up)',"images"])
     else:
         init = False
 
@@ -511,12 +514,10 @@ if __name__ == "__main__":
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-
-
         # 设置背景、场景和渲染输出路径
         background = "./database/blank_background.blend"
         scene = "Seesaw"
-        render_output_path = "./database/seesaw_rendered_images/"
+        render_output_path = f"./database/rendered_seesaw_{resolution}/"
 
         # 使用起始帧数循环渲染 iteration_time 个批次
         for i in tqdm(range(arguments.iter, arguments.iter + iteration_time), desc="Rendering"):
@@ -525,5 +526,6 @@ if __name__ == "__main__":
                 scene=scene,
                 render_output_path=render_output_path,
                 csv_file=csv_file,
-                iter=i
+                iter=i,
+                resolution = resolution
             )

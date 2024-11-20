@@ -451,7 +451,6 @@ def main(
     rotation_angle = result.angle_degrees
     load_blend_file(filepath = needle, location = needle_location, scale=(1, 1, 1),rotation_angle=result.angle_degrees)
 
-    reload_dynamic_textures()
     bpy.ops.object.camera_add()
     camera = bpy.context.object
     
@@ -493,17 +492,6 @@ def render_scene():
     bpy.ops.render.render(write_still=True)
     # print(f"渲染完成，图像已保存到：{bpy.context.scene.render.filepath}")
 
-def reload_dynamic_textures():
-    """
-    Reload dynamic textures from all materials.
-    """
-    for mat in bpy.data.materials:
-        if mat.use_nodes:
-            for node in mat.node_tree.nodes:
-                if node.type == 'TEX_IMAGE' and node.image:
-                    node.image.reload()
-                    print(f"Reloaded texture: {node.image.name}")
-
 
 
 if __name__ == "__main__":
@@ -515,7 +503,7 @@ if __name__ == "__main__":
     parser.add_argument("--without_2D", action="store_true", help="whether use 2D figure")
     arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
 
-    iteration_time = 45  # 每次渲染的批次数量
+    iteration_time = 25  # 每次渲染的批次数量
     resolution = arguments.resolution
 
     # CSV 文件路径
@@ -534,7 +522,7 @@ if __name__ == "__main__":
         
         # 如果文件不存在，写入 CSV 文件头
         if not file_exists and arguments.overlook_only:
-            writer.writerow(["iter", "3D_over", "magnet_direction", "needle_location", "needle_direction"])
+            writer.writerow(["iter", "3D_over", "magnet_direction(degree)", "needle_location", "needle_direction(vector)"])
 
         # 设置背景、场景和渲染输出路径
         background = "./database/blank_background.blend"
