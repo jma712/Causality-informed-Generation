@@ -394,8 +394,8 @@ def main(
 
     bpy.ops.object.camera_add()
     camera = bpy.context.object
-    c_position = fit_camera_to_objects_with_random_position(camera, ["Lever", "Weight", "Weight.001", "Pivot"], fixed=True) 
-    # raise RuntimeError()
+    print()
+    fit_camera_to_objects_with_random_position(camera, ["Lever", "Weight", "Weight.001", "Pivot"], fixed=True) 
     render_scene()
 
     with open(csv_file, mode="a", newline="") as file:
