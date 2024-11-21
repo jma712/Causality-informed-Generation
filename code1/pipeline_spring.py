@@ -136,7 +136,6 @@ def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_pat
     bpy.context.scene.render.filepath = output_path
     bpy.context.scene.render.image_settings.file_format = file_format
     # bpy.context.scene.render.engine = 'CYCLES'
-    print("渲染参数已设置。")
 
 def save_blend_file(filepath):
     """保存当前场景为指定的 .blend 文件，直接覆盖原有文件。"""
@@ -376,6 +375,7 @@ def main(
     save_path = "../database/modified_scene.blend",
     csv_file = None,
     iter = 0,
+    resolution = None,
     circle = False,
   ):
     clear_scene()
@@ -387,7 +387,7 @@ def main(
     background = "./database/blank_background_spring.blend"
     load_blend_file_backgournd(background)
 
-    set_render_parameters(output_path=file_path)
+    set_render_parameters(output_path=file_path, resolution=(resolution, resolution))
     camera_location = (random.uniform(-0, 0), random.uniform(15, 15), random.uniform(1, 1))
     load_blend_file("./database/Spring.blend")
     
@@ -455,60 +455,43 @@ if __name__ == "__main__":
 
     parser.add_argument("--iter", type=int, help="initial number")
     parser.add_argument('--circle', action='store_true', help="A boolean flag argument")
+    parser.add_argument("--size", type=int, help="size of each iteration")
+    parser.add_argument('--resolution', type=int, help="resolution of the image")
 
     arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
-
-    iteration_time = 45  # 每次渲染的批次数量
+    iteration_size = arguments.size  # 每次渲染的批次数量
+    resolution =  arguments.resolution
 
     # CSV 文件路径
-    csv_file = "spring_scene.csv"
+    csv_file = f"./database/rendered_spring_{resolution}/spring_scene_{resolution}P.csv"
     if arguments.circle:
-      csv_file = "spring_scene_circle.csv"
+      csv_file = f"./database/rendered_spring_circle_{resolution}/spring_scene_circle_{resolution}P.csv"
 
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
-        init = True
-        # 文件不存在，创建并写入表头
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(["iter", "weight", "spring high", "deformation", "spring_constant", "matrial", "cube size", "img_path"])
-    else:
-        init = False
-
-    try:
-        with open(csv_file, mode="r") as file:
-            file_exists = True
-    except FileNotFoundError:
-        file_exists = False
-
-    # 打开 CSV 文件，追加写入数据
-    with open(csv_file, mode="a", newline="") as file:
-        writer = csv.writer(file)
-
 
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
         
-        # 如果文件不存在，写入 CSV 文件头
-        if not file_exists:
-            writer.writerow(["iter", "weight", "spring high", "deformation", "spring_constant", "matrial", "cube size"])
 
         # 设置背景、场景和渲染输出路径
         background = "./database/blank_background_spring.blend"
-        scene = "Reflection"
-        render_output_path = "./database/spring_rendered_images/"
+        render_output_path = f"./database/rendered_spring_{resolution}/"
         if arguments.circle:
-          render_output_path = './database/spring_rendered_image_circle/'
+          render_output_path = './database/rendered_spring_circle_{resolution}//'
 
         # 使用起始帧数循环渲染 iteration_time 个批次
-        for i in tqdm(range(arguments.iter, arguments.iter + iteration_time), desc="Rendering"):
+        for i in tqdm(range(arguments.iter, arguments.iter + iteration_size), desc="Rendering"):
             main(
                 background=background,
-                scene=scene,
                 render_output_path=render_output_path,
                 csv_file=csv_file,
                 iter=i,
-                circle = arguments.circle
+                circle = arguments.circle,
+                resolution = resolution
             )

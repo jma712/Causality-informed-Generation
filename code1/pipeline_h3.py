@@ -7,11 +7,16 @@ import math
 import bpy
 from mathutils import Vector
 from mathutils import Vector, Matrix
+import csv
+from datetime import datetime
+import csv
+
 
 sys.path.append(os.path.abspath('/home/ulab/dxl952/Causal_project/github/Causality-informed-Generation/code1'))
 from blender_render import clear_scene, disable_shadows_for_render, load_blend_file_backgournd, set_render_parameters, \
 move_object_to_location, render_scene, setting_camera, save_blend_file,create_rectangular_prism, rotate_object_around_edge, load_blend_file, rotate_object_y_axis_by_name
-
+sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")  # 请根据实际路径确认
+from tqdm import tqdm
 
 def main(
     background = 'blank',
@@ -36,12 +41,17 @@ def main(
     """
     
     clear_scene()
-    disable_shadows_for_render()
+    
+    current_time = datetime.now()
+    file_name = current_time.strftime("%Y%m%d_%H%M%S")  # 格式化为 YYYYMMDD_HHMMSS
+    file_name = os.path.join(render_output_path, file_name+".png")
+    
+    
     if 'blank' in background.lower():
       background = "./database/blank_background_spring.blend"
       load_blend_file_backgournd(background)
 
-    set_render_parameters(output_path=render_output_path, resolution=(resolution, resolution))
+    set_render_parameters(output_path=file_name, resolution=(resolution, resolution))
     
     # randomly generate r from 0.5 to 15
     r = random.uniform(0.1, 0.9)
@@ -49,7 +59,7 @@ def main(
     ball_v = 4/3 * math.pi * r**3
     cylinder_v = 2 * ball_v
     # noise e is the height of the rectangular prism above the ground
-    e = random.uniform(0, 0.2) if with_noise else 0  # noise e is the height of the rectangular prism above the ground
+    e = random.uniform(0, 0.15) if with_noise else 0  # noise e is the height of the rectangular prism above the ground
     #  tilt angle of the rectangular prism
     angle = 3*ball_v + 5*cylinder_v + 0.5*e  
     
@@ -65,15 +75,15 @@ def main(
     
     rotate_object_y_axis_by_name('rect', angle)
     
-    target_location = (0, 0, 3.3)
-    camera_location = (random.uniform(-0, 0), random.uniform(23, 23), random.uniform(3, 3))
-    setting_camera(camera_location, target_location)
+    target_location = (1, 0, 3.8)
+    camera_location = (random.uniform(1, 1), random.uniform(23, 23), random.uniform(3, 3))
+    setting_camera(camera_location, target_location, len_=90)
     render_scene()
     
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iteration, ball_v, cylinder_v, e, angle ])
+        writer.writerow([iteration, ball_v, cylinder_v, e, angle, file_name ])
     
   
 
@@ -91,14 +101,12 @@ if __name__ == "__main__":
 
     # CSV 文件路径
     csv_file = f"./database/rendered_h3_{resolution}/ref_scene_{resolution}P.csv"
-    if arguments.circle:
-      csv_file = f"./database/rendered_h3_{resolution}/h3_scene_circle_{resolution}P.csv"
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["iter", 'volume_ball', 'volume_cylinder', 'height_prism', 'tilt_angle' ])
+            writer.writerow(["iter", 'volume_ball', 'volume_cylinder', 'height_prism_above', 'tilt_angle' , "img_path"])
 
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:
