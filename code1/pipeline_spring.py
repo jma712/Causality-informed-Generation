@@ -132,10 +132,9 @@ def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_pat
     """设置渲染参数，包括分辨率、格式和输出路径。"""
     bpy.context.scene.render.resolution_x = resolution[0]
     bpy.context.scene.render.resolution_y = resolution[1]
-    bpy.context.scene.render.resolution_percentage = 100
+    bpy.context.scene.render.resolution_percentage = 250
     bpy.context.scene.render.filepath = output_path
     bpy.context.scene.render.image_settings.file_format = file_format
-    # bpy.context.scene.render.engine = 'CYCLES'
 
 def save_blend_file(filepath):
     """保存当前场景为指定的 .blend 文件，直接覆盖原有文件。"""
@@ -284,10 +283,18 @@ def disable_shadows_for_render():
 
 
 def apply_pbr_material(obj, texture_dir, texture_files):
+    """
+    Apply a PBR material to an object using provided texture files.
+
+    Parameters:
+        obj (bpy.types.Object): The Blender object to apply the material to.
+        texture_dir (str): Directory containing texture files.
+        texture_files (dict): Dictionary mapping texture types to filenames.
+    """
     bpy.ops.object.shade_smooth()
 
-    # 创建胡桃木材质
-    mat = bpy.data.materials.new(name="GroundWalnutMaterial")
+    # Create a new material
+    mat = bpy.data.materials.new(name="PBRMaterial")
     mat.use_nodes = True
 
     node_tree = mat.node_tree
@@ -296,76 +303,58 @@ def apply_pbr_material(obj, texture_dir, texture_files):
 
     nodes.clear()
 
-    # 创建节点
+    # Create essential nodes
     bsdf = nodes.new(type="ShaderNodeBsdfPrincipled")
-    texture_node = nodes.new(type="ShaderNodeTexImage")
-    normal_map_node = nodes.new(type="ShaderNodeTexImage")
-    normal_map = nodes.new(type="ShaderNodeNormalMap")
-    mapping_node = nodes.new(type="ShaderNodeMapping")
     texture_coord_node = nodes.new(type="ShaderNodeTexCoord")
+    mapping_node = nodes.new(type="ShaderNodeMapping")
     material_output = nodes.new(type="ShaderNodeOutputMaterial")
-    
-    if "Base Color" in texture_files:
-      base_color_path = os.path.join(texture_dir, texture_files["Base Color"])
+    normal_map_node = nodes.new(type="ShaderNodeNormalMap")
 
-      if os.path.exists(base_color_path):
-          texture_node.image = bpy.data.images.load(base_color_path)
-          texture_node.image.colorspace_settings.name = 'sRGB'
-      else:
-          print(f"do not get color png: {base_color_path}")
-          bsdf.inputs['Base Color'].default_value = (0.6, 0.4, 0.2, 1)  # 默认棕色
-    if  "Metalness" in texture_files:
-      metalness_map_path = os.path.join(texture_dir, texture_files["Metalness"])
-      if os.path.exists(metalness_map_path):
-          bsdf.inputs['Metallic'].default_value = 1.0
-          texture_node.image = bpy.data.images.load(metalness_map_path)
-          texture_node.image.colorspace_settings.is_data = True  # 设置为非颜色数据
-      else:
-          print(f"do not get metal png {metalness_map_path}")
-          bsdf.inputs['Metallic'].default_value = 0.0
-    if "Roughness" in texture_files:
-      roughness_map_path = os.path.join(texture_dir, texture_files["Roughness"])
-      if os.path.exists(roughness_map_path):
-          bsdf.inputs['Roughness'].default_value = 0.4
-          texture_node.image = bpy.data.images.load(roughness_map_path)
-          texture_node.image.colorspace_settings.is_data = True
-          
-      else:
-          print(f"do not get roughness: {roughness_map_path}")
-          bsdf.inputs['Roughness'].default_value = 0.4
-          
-    if "Normal" in texture_files:
-      normal_map_path = os.path.join(texture_dir, texture_files["Normal"])
-      if os.path.exists(normal_map_path):
-          normal_map_node.image = bpy.data.images.load(normal_map_path)
-          normal_map_node.image.colorspace_settings.is_data = True
-      else:
-          print(f"do not get normal png {normal_map_path}")
-          normal_map_node = None
-          
+    # Position nodes for clarity
+    bsdf.location = (400, 300)
+    material_output.location = (700, 300)
+    texture_coord_node.location = (-600, 300)
+    mapping_node.location = (-400, 300)
+    normal_map_node.location = (200, -200)
 
-    # 设置材质属性
-    bsdf.inputs['Metallic'].default_value = 0.0
-    bsdf.inputs['Roughness'].default_value = 0.4
-
-    # 连接纹理坐标到映射节点
+    # Connect UV mapping
     links.new(texture_coord_node.outputs['UV'], mapping_node.inputs['Vector'])
 
-    # 连接映射节点到颜色纹理和法线贴图
-    links.new(mapping_node.outputs['Vector'], texture_node.inputs['Vector'])
-    if normal_map_node:
-        links.new(mapping_node.outputs['Vector'], normal_map_node.inputs['Vector'])
+    # Function to load texture and handle errors
+    def load_texture(texture_type, input_socket, is_data=False):
+        if texture_type in texture_files:
+            texture_path = os.path.join(texture_dir, texture_files[texture_type])
+            if os.path.exists(texture_path):
+                texture_node = nodes.new(type="ShaderNodeTexImage")
+                texture_node.location = (-200, 300 - len(nodes) * 100)
+                texture_node.image = bpy.data.images.load(texture_path)
+                texture_node.image.colorspace_settings.is_data = is_data
+                links.new(mapping_node.outputs['Vector'], texture_node.inputs['Vector'])
+                links.new(texture_node.outputs['Color'], input_socket)
+                return texture_node
+            else:
+                print(f"Texture not found: {texture_path}")
+        else:
+            print(f"Texture type '{texture_type}' not provided.")
+        return None
 
-    # 连接颜色纹理到 BSDF 基础颜色
-    links.new(texture_node.outputs['Color'], bsdf.inputs['Base Color'])
+    # Load textures
+    load_texture("Base Color", bsdf.inputs['Base Color'], is_data=False)
+    load_texture("Metalness", bsdf.inputs['Metallic'], is_data=True)
+    load_texture("Roughness", bsdf.inputs['Roughness'], is_data=True)
+    ao_node = load_texture("Ambient Occlusion", bsdf.inputs['Base Color'], is_data=True)
+    normal_texture_node = load_texture("Normal", normal_map_node.inputs['Color'], is_data=True)
+    load_texture("Displacement", None, is_data=True)  # Note: Connect to displacement later if needed
 
-    if normal_map_node:
-        links.new(normal_map_node.outputs['Color'], normal_map.inputs['Color'])
-        links.new(normal_map.outputs['Normal'], bsdf.inputs['Normal'])
+    # Handle normal map connection
+    if normal_texture_node:
+        links.new(normal_map_node.outputs['Normal'], bsdf.inputs['Normal'])
+
+    # Connect BSDF to material output
     links.new(bsdf.outputs['BSDF'], material_output.inputs['Surface'])
 
+    # Assign material to the object
     obj.data.materials.append(mat)
-
 
 
 def main(
@@ -426,16 +415,16 @@ def main(
     elif material == "Wood":
       apply_pbr_material(
           obj=cube, 
-          texture_dir="./database/material/Wood060_1K-JPG/",  # 替换为实际路径
+          texture_dir="./database/material/Wood066_1K-JPG/",  # 替换为实际路径
           texture_files={
-              'Base Color': 'Wood060_1K-JPG_Color.jpg',
-              'Roughness': 'Wood060_1K-JPG_Roughness',
-              'Normal': 'Wood060_1K-JPG__NormalGL.jpg'
+              'Base Color': 'Wood066_1K-JPG_Color.jpg',
+              'Roughness': 'Wood066_1K-JPG_Roughness.jpg',
+              'Normal': 'Wood066_1K-JPG_NormalGL.jpg'
           }
       )
     
 
-    target_location = (0, 0, 1.)
+    target_location = (0, 0, 1.6)
     setting_camera(camera_location, target_location)
 
     render_scene()
@@ -445,7 +434,7 @@ def main(
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iter, weight,  high, deformation, spring_constant, material, (x,y,z), file_path])
+        writer.writerow([iter, weight,  high, deformation, spring_constant, f"{material}'s density:{material_density[material]}", (x,y,z), file_path])
 
     return
 

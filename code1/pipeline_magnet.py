@@ -420,11 +420,11 @@ def main(
     file_name = current_time.strftime("%Y%m%d_%H%M%S")  # 格式化为 YYYYMMDD_HHMMSS
     twoD_output_path = os.path.join(render_output_path, file_name+"_2D.png")
     if 'blank' in background.lower():
-      background = "./database/background_magnet.blend"
+      background = "./database/background_magnet_white.blend"
       load_blend_file_backgournd(background)
 
     blender = "/home/ulab/dxl952/Causal_project/github/Causality-informed-Generation/code1/database/magnet/magnet.blend"
-    needle = "/home/ulab/dxl952/Causal_project/github/Causality-informed-Generation/code1/database/compass/compass.blend"
+    needle = "/home/ulab/dxl952/Causal_project/github/Causality-informed-Generation/code1/database/compass/compass_b.blend"
     random_rotation_angle = random.uniform(0, 360)
     
     # print(f"rotation_angle of magnet: {random_rotation_angle:.2f}")
@@ -470,7 +470,7 @@ def main(
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
         if without_2D and overlook_only:
-          writer.writerow([iter, render_3D_over_output_path, -random_rotation_angle, needle_location, result.field_direction])
+          writer.writerow([iter, render_3D_over_output_path, -random_rotation_angle, needle_location[0], needle_location[1], result.angle_degrees])
         # elif without_2D:
         else:
           writer.writerow([iter, render_3D_output_path, render_3D_over_output_path,twoD_output_path, -random_rotation_angle, needle_location, result.field_direction])
@@ -507,7 +507,7 @@ if __name__ == "__main__":
 
     # CSV 文件路径
     scene = "Magnetic"
-    csv_file = f"./database/rendered_{scene.lower()}_{resolution}/magnet_scene_{resolution}.csv"
+    csv_file = f"./database/rendered_{scene.lower()}_{resolution}_blue/magnet_scene_{resolution}.csv"
     
     try:
         with open(csv_file, mode="r") as file:
@@ -521,12 +521,12 @@ if __name__ == "__main__":
         
         # 如果文件不存在，写入 CSV 文件头
         if not file_exists and arguments.overlook_only:
-            writer.writerow(["iter", "3D_over", "magnet_direction(degree)", "needle_location", "needle_direction(vector)"])
+            writer.writerow(["iter", "3D_over", "magnet_direction(degree)", "needle_location_x", "needle_location_y", "needle_direction(degree)"])
 
         # 设置背景、场景和渲染输出路径
-        background = "./database/blank_background.blend"
+        background = "blank"
 
-        render_output_path = f"./database/rendered_{scene.lower()}_{resolution}/"
+        render_output_path = f"./database/rendered_{scene.lower()}_{resolution}_blue/"
 
         # 使用起始帧数循环渲染 iteration_time 个批次
         for i in tqdm(range(arguments.iter, arguments.iter + iteration_time), desc="Rendering"):

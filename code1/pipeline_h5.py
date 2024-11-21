@@ -10,7 +10,7 @@ from mathutils import Vector, Matrix
 import csv
 from datetime import datetime
 import csv
-
+import mathutils
 
 sys.path.append(os.path.abspath('/home/ulab/dxl952/Causal_project/github/Causality-informed-Generation/code1'))
 from blender_render import clear_scene, disable_shadows_for_render, load_blend_file_backgournd, set_render_parameters, \
@@ -45,6 +45,69 @@ def rotate_object_around_custom_axis(obj, pivot_point, angle):
     obj.rotation_euler[1] += radians  # Y-axis corresponds to index 1 in Euler rotation
 
     print(f"Rotated object '{obj.name}' around Y-axis by {angle} degrees using pivot {pivot_point}.")
+
+def are_objects_in_camera_view(camera):
+    """
+    Check if all objects in the scene are fully visible in the camera's view.
+    
+    Parameters:
+        camera (bpy.types.Object): The camera object.
+    
+    Returns:
+        bool: True if all objects are fully visible, False otherwise.
+    """
+    scene = bpy.context.scene
+
+    # Ensure the camera is active
+    scene.camera = camera
+
+    for obj in bpy.data.objects:
+        if obj.type not in {'MESH', 'CURVE', 'SURFACE', 'META'}:
+            continue  # Skip non-visible objects like lights, cameras, etc.
+
+        # Get the object's bounding box in world coordinates
+        obj_matrix = obj.matrix_world
+        bbox_world = [obj_matrix @ mathutils.Vector(corner) for corner in obj.bound_box]
+        
+        for corner in bbox_world:
+            # Project each corner to the camera's view
+            co_ndc = world_to_camera_view(scene, camera, corner)
+
+            # Check if the corner is outside the normalized device coordinates (NDC)
+            if not (0.0 <= co_ndc[0] <= 1.0 and 0.0 <= co_ndc[1] <= 1.0 and co_ndc[2] > 0.0):
+                print(f"Object '{obj.name}' is partially or completely outside the view.")
+                return False
+
+    print("All objects are fully visible in the camera view.")
+    return True
+
+def world_to_camera_view(scene, cam, coord):
+    """
+    Project a 3D world coordinate to the camera's view space (NDC).
+    
+    Parameters:
+        scene (bpy.types.Scene): Current scene.
+        cam (bpy.types.Object): Camera object.
+        coord (mathutils.Vector): 3D coordinate in world space.
+    
+    Returns:
+        mathutils.Vector: Normalized device coordinates (x, y, z).
+    """
+    # Transform the coordinate into the camera's view space
+    camera_matrix = cam.matrix_world.normalized().inverted()
+    coord_camera = camera_matrix @ coord
+    
+    # Get perspective projection matrix
+    camera_data = cam.data
+    if camera_data.type != 'PERSP' and camera_data.type != 'ORTHO':
+        raise ValueError("Unsupported camera type. Only perspective and orthographic are supported.")
+
+    proj_matrix = camera_data.compute_viewplane(scene)
+    co_ndc = proj_matrix @ coord_camera
+
+    # Normalize
+    return mathutils.Vector((co_ndc.x / co_ndc.w, co_ndc.y / co_ndc.w, co_ndc.z))
+
 
 
 def main(
@@ -83,7 +146,7 @@ def main(
       background = "./database/blank_background_spring.blend"
       load_blend_file_backgournd(background)
 
-    set_render_parameters(output_path=render_output_path, resolution=(h, w))
+    set_render_parameters(output_path=file_name, resolution=(h, w), res = 250)
     camera_location = (random.uniform(-0, 0), random.uniform(23, 23), random.uniform(4, 4))
     
     # randomly generate r from 0.5 to 15
@@ -120,17 +183,21 @@ def main(
     
     rotate_object_y_axis_by_name("Cylinder", e)
   
-    target_location = ((r + r_cylinder*2 + c) /2, 0, 3*d/2)
-    camera_location = ((r + r_cylinder*2 + c) /2, random.uniform(20, 20), random.uniform(1, 1))
-    setting_camera(camera_location, target_location, len_=30 )
+    target_location = ((r + r_cylinder*2 + c) /2, 0, 4)
+    camera_h = random.uniform(4, 4)
+    camera_location = ((r + r_cylinder*2 + c) /2, random.uniform(20, 20), camera_h)
+    setting_camera(camera_location, target_location, len_=35 )
+    # Example Usage:
+    camera = bpy.data.objects['Camera']  # Replace 'Camera' with your actual camera name
+    # if are_objects_in_camera_view(camera):
     render_scene()
     
-    save_blend_file(save_path)
+    # save_blend_file(save_path)
     
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iteration, a, b, c, d, e, noise])
+        writer.writerow([iteration, a, b, c, d, e, noise, camera_h])
   
 
 if __name__ == "__main__":
@@ -153,7 +220,7 @@ if __name__ == "__main__":
     if not os.path.exists(csv_file):
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["iter", 'volume_ball', 'height_cylinder', 'distance_ball_cylinder', 'height_cylinder_above_ground', 'tilt_angle', 'noise', "PS: In the third hypothetical example, b = 5a; c = 6a + 2b; d = 2c; e = 7.5a + 4.5c + 4d + 0.9ε; In the third hypothetical example, the noise ε is the height of the cylinder above the ground."])
+            writer.writerow(["iter", 'volume_ball', 'height_cylinder', 'distance_ball_cylinder', 'height_cylinder_above_ground', 'tilt_angle', 'noise', 'camera_h',"PS: In the third hypothetical example, b = 5a; c = 6a + 2b; d = 2c; e = 7.5a + 4.5c + 4d + 0.9ε; In the third hypothetical example, the noise ε is the height of the cylinder above the ground."])
 
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:
