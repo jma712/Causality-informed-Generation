@@ -283,11 +283,11 @@ def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_pat
     #bpy.context.scene.render.film_transparent = use_transparent_bg
     
     # 设置光线跟踪反弹次数
-    bpy.context.scene.cycles.max_bounces = 6
-    bpy.context.scene.cycles.diffuse_bounces = 2
-    bpy.context.scene.cycles.glossy_bounces = 2
-    bpy.context.scene.cycles.transmission_bounces = 6
-    bpy.context.scene.cycles.volume_bounces = 2
+    # bpy.context.scene.cycles.max_bounces = 6
+    # bpy.context.scene.cycles.diffuse_bounces = 2
+    # bpy.context.scene.cycles.glossy_bounces = 2
+    # bpy.context.scene.cycles.transmission_bounces = 6
+    # bpy.context.scene.cycles.volume_bounces = 2
     
     # 设置光路径采样（可选）
     #bpy.context.scene.cycles.use_adaptive_sampling = True
@@ -382,8 +382,7 @@ def magnetic_needle_direction_xy_plane(m, magnet_position, needle_position):
     needle_direction_xy = B / np.linalg.norm(B)
     
     return needle_direction_xy
-    
-    
+
 def random_point_on_ring(inner_radius, outer_radius):
     """
     inner_radius : float
@@ -402,8 +401,167 @@ def random_point_on_ring(inner_radius, outer_radius):
     y = radius * np.sin(angle)
     
     # z 坐标保持为 0
-    return (x, y, -0.03)
+    return (x, y, -0.4)
 
+def random_point_outside_rotated_rectangle(image_size, rect_size = (2.2411911487579346,11.398683547973633), angle = None):
+    """
+    在图像范围内但不在中心旋转矩形区域随机生成点。
+
+    参数:
+        image_size : tuple
+            图像的尺寸 (image_width, image_height)。
+        rect_size : tuple
+            中心矩形的尺寸 (rect_width, rect_height)。
+        angle : float
+            矩形围绕原点的旋转角度（以弧度为单位）。
+
+    返回:
+        tuple
+            随机生成的点 (x, y, z)。
+    """
+    image_width, image_height = image_size
+    rect_width, rect_height = rect_size
+
+    # 旋转矩形的顶点坐标相对于原点
+    half_width, half_height = rect_width / 2, rect_height / 2
+    rectangle_vertices = [
+        (-half_width, -half_height),
+        (-half_width, half_height),
+        (half_width, half_height),
+        (half_width, -half_height),
+    ]
+
+    # 计算旋转后的矩形顶点坐标
+    rotated_vertices = []
+    cos_angle = np.cos(angle)
+    sin_angle = np.sin(angle)
+    for x, y in rectangle_vertices:
+        rotated_x = x * cos_angle - y * sin_angle
+        rotated_y = x * sin_angle + y * cos_angle
+        rotated_vertices.append((rotated_x, rotated_y))
+
+    # 获取旋转矩形的边界范围
+    x_coords, y_coords = zip(*rotated_vertices)
+    rect_x_min, rect_x_max = min(x_coords), max(x_coords)
+    rect_y_min, rect_y_max = min(y_coords), max(y_coords)
+
+    while True:
+        # 随机生成点的 x 和 y 坐标在图像范围内
+        x = random.uniform(-image_width / 2, image_width / 2)
+        y = random.uniform(-image_height / 2, image_height / 2)
+
+        # 检查点是否在旋转矩形内
+        point_in_rect = point_in_rotated_rectangle(x, y, rect_width, rect_height, angle)
+        if not point_in_rect:
+            return (x, y, -0.03)
+
+def point_in_rotated_rectangle(x, y, rect_width, rect_height, angle):
+    """
+    判断一个点是否在旋转后的矩形内。
+    矩形的中心默认在原点。
+
+    参数:
+        x, y : float
+            点的坐标。
+        rect_width, rect_height : float
+            矩形的宽度和高度。
+        angle : float
+            矩形的旋转角度（以弧度为单位）。
+
+    返回:
+        bool
+            如果点在矩形内返回 True，否则返回 False。
+    """
+    # 旋转点的坐标到矩形的对齐坐标系
+    cos_angle = np.cos(-angle)
+    sin_angle = np.sin(-angle)
+    rotated_x = x * cos_angle - y * sin_angle
+    rotated_y = x * sin_angle + y * cos_angle
+
+    # 检查点是否在对齐的矩形内
+    half_width, half_height = rect_width / 2, rect_height / 2
+    return (-half_width <= rotated_x <= half_width) and (-half_height <= rotated_y <= half_height)
+  
+  
+def check_objects_intersection(object_name1, object_name2):
+    """
+    检查两个对象是否相交（是否穿模）。
+    
+    参数:
+        object_name1 (str): 第一个对象的名称。
+        object_name2 (str): 第二个对象的名称。
+    
+    返回:
+        bool: 如果对象相交返回 True，否则返回 False。
+    """
+    obj1 = bpy.data.objects.get(object_name1)
+    obj2 = bpy.data.objects.get(object_name2)
+    
+    if not obj1:
+        print(f"Object '{object_name1}' not found.")
+        return False
+    if not obj2:
+        print(f"Object '{object_name2}' not found.")
+        return False
+    
+    # 保存原始几何体数据
+    original_mesh = obj1.data.copy()
+
+    # 创建布尔修改器进行检测
+    boolean_mod = obj1.modifiers.new(name="IntersectionCheck", type='BOOLEAN')
+    boolean_mod.operation = 'INTERSECT'
+    boolean_mod.object = obj2
+    
+    try:
+        # 临时执行布尔操作
+        bpy.context.view_layer.objects.active = obj1
+        bpy.ops.object.modifier_apply(modifier="IntersectionCheck")
+        
+        # 如果布尔操作成功且生成了几何体，说明对象相交
+        if len(obj1.data.polygons) > 0:
+            print(f"Objects '{object_name1}' and '{object_name2}' intersect.")
+            return True
+        else:
+            print(f"Objects '{object_name1}' and '{object_name2}' do not intersect.")
+            return False
+    
+    except Exception as e:
+        print(f"Error while checking intersection: {e}")
+        return False
+    
+    finally:
+        # 恢复原始几何体数据
+        obj1.data = original_mesh
+
+def random_point_outside_rotated_inner_ellipse_within_camera(inner_axes, angle, camera_frame):
+    """
+    随机生成一个点，该点位于旋转内椭圆外部，同时位于相机取景框范围内。
+
+    参数:
+        inner_axes (tuple): 内椭圆的长轴和短轴 (inner_a, inner_b)。
+        angle (float): 内椭圆的旋转角度（以弧度为单位，逆时针方向）。
+        camera_frame (tuple): 相机取景框的范围 (x_min, x_max, y_min, y_max)。
+
+    返回:
+        tuple: 点的位置 (x, y)。
+    """
+    inner_a, inner_b = inner_axes
+    x_min, x_max, y_min, y_max = camera_frame
+
+    while True:
+        # 随机生成一个点在相机取景框范围内
+        x = random.uniform(x_min, x_max)
+        y = random.uniform(y_min, y_max)
+
+        # 将点的坐标旋转到内椭圆的局部坐标系
+        cos_angle = np.cos(angle)
+        sin_angle = np.sin(angle)
+        local_x = cos_angle * x + sin_angle * y
+        local_y = -sin_angle * x + cos_angle * y
+
+        # 检查点是否在内椭圆外部
+        if (local_x**2 / inner_a**2 + local_y**2 / inner_b**2) >= 1:
+            return (x, y)
 
 def main(
     background = 'blank',
@@ -431,9 +589,14 @@ def main(
     
     load_blend_file(blender, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=-random_rotation_angle)
 
-    inner_radius = 2.5  # 圆环的内半径
-    outer_radius = 5  # 圆环的外半径
-    needle_location = random_point_on_ring(inner_radius, outer_radius)
+    inner_radius = 14/2 # 圆环的内半径
+    outer_radius = 13.2/2 + 1  # 圆环的外半径
+    # needle_location = random_point_on_ring(inner_radius, outer_radius)
+    needle_location = random_point_outside_rotated_inner_ellipse_within_camera((14.5, 3.5), angle=random_rotation_angle, camera_frame=(-7.5,7.5, -7.5, 7.5))
+    print(needle_location)
+    # needle_location = random_point_outside_rotated_rectangle((11.5, 11.5), angle=random_rotation_angle)
+    
+    # needle_location = random_point_outside_rotated_rectangle()
     visualize = False
     if not without_2D:
       visualize = True
@@ -441,7 +604,7 @@ def main(
     result = calculate_node_magnetic_info(
         magnet_center=(0, 0),
         magnet_direction=-random_rotation_angle,
-        magnet_length=3.9,
+        magnet_length=11.4,
         node_position=needle_location[:2],
         visualize=visualize,
         png_name = twoD_output_path
@@ -452,29 +615,68 @@ def main(
 
     bpy.ops.object.camera_add()
     camera = bpy.context.object
+    camera.name = "Camera"
     
     if not overlook_only:
       render_3D_output_path = os.path.join(render_output_path, file_name+f"_3D_{resolution}.png")
       set_render_parameters(output_path=render_3D_output_path, resolution=(resolution, resolution))
-      fit_camera_to_objects_with_random_position(camera, ["Cylinder.003_CompassNeedleHolder_mat_0", "Object_2"]) 
+      fit_camera_to_objects_with_random_position(camera, ["needle", "Object_2"]) 
       render_scene()
       
     render_3D_over_output_path = os.path.join(render_output_path, file_name+f"_Over_3D_{resolution}p.png")
-    # fit_camera_to_objects_with_random_position(camera, ["Cylinder.003_CompassNeedleHolder_mat_0", "Object_2"], over=True) 
+    # fit_camera_to_objects_with_random_position(camera, ["needle", "Object_2"], over=True) 
     fit_camera_to_objects_with_random_position(camera, [ "Object_2"], over=True) 
+    object_name = "Object_2"
+    needle_name = "needle"
     set_render_parameters(output_path=render_3D_over_output_path, resolution=(resolution, resolution))
-    # save_blend_file("./debug.blend")
-    render_scene()
-    
-    # 将结果写入 CSV 文件
-    with open(csv_file, mode="a", newline="") as file:
-        writer = csv.writer(file)
-        if without_2D and overlook_only:
-          writer.writerow([iter, render_3D_over_output_path, -random_rotation_angle, needle_location[0], needle_location[1], result.angle_degrees])
-        # elif without_2D:
-        else:
-          writer.writerow([iter, render_3D_output_path, render_3D_over_output_path,twoD_output_path, -random_rotation_angle, needle_location, result.field_direction])
+    if check_objects_intersection(object_name, needle_name):
+      pass
+    else:
+      # save_blend_file("./debug.blend")
+      render_scene()
+      
+      # 将结果写入 CSV 文件
+      with open(csv_file, mode="a", newline="") as file:
+          writer = csv.writer(file)
+          if without_2D and overlook_only:
+            writer.writerow([iter, render_3D_over_output_path, -random_rotation_angle + 360, needle_location[0], needle_location[1], result.angle_degrees])
+          # elif without_2D:
+          else:
+            writer.writerow([iter, render_3D_output_path, render_3D_over_output_path,twoD_output_path, -random_rotation_angle, needle_location, result.field_direction])
 
+
+def random_point_outside_rotated_inner_ellipse_within_camera(inner_axes, angle, camera_frame):
+    """
+    随机生成一个点，该点位于旋转内椭圆外部，同时位于相机取景框范围内。
+
+    参数:
+        inner_axes (tuple): 内椭圆的长轴和短轴 (inner_a, inner_b)。
+        angle (float): 内椭圆的旋转角度（以角度为单位，逆时针方向）。
+        camera_frame (tuple): 相机取景框的范围 (x_min, x_max, y_min, y_max)。
+
+    返回:
+        tuple: 点的位置 (x, y)。
+    """
+    inner_a, inner_b = inner_axes
+    x_min, x_max, y_min, y_max = camera_frame
+
+    # 将角度转换为弧度
+    angle_rad = np.radians(angle)
+
+    while True:
+        # 随机生成一个点在相机取景框范围内
+        x = random.uniform(x_min, x_max)
+        y = random.uniform(y_min, y_max)
+
+        # 将点的坐标旋转到内椭圆的局部坐标系
+        cos_angle = np.cos(angle_rad)
+        sin_angle = np.sin(angle_rad)
+        local_x = cos_angle * x + sin_angle * y
+        local_y = -sin_angle * x + cos_angle * y
+
+        # 检查点是否在内椭圆外部
+        if (local_x**2 / inner_a**2 + local_y**2 / inner_b**2) >= 1:
+            return (x, y, -0.3)
 
 def save_blend_file(filepath):
     """保存当前场景为指定的 .blend 文件，直接覆盖原有文件。"""
@@ -540,3 +742,32 @@ if __name__ == "__main__":
                 without_2D = arguments.without_2D,
                 overlook_only= arguments.overlook_only
             )
+            object_name = "Object_2"
+            obj = bpy.data.objects.get(object_name)
+            needle_name = "needle"
+            needle_object = bpy.data.objects.get(needle_name)
+
+            if obj:
+                # 确保对象有尺寸数据
+                dimensions = obj.dimensions
+                print(f"The size of {object_name} is:")
+                print(f"X: {dimensions.x}, Y: {dimensions.y}, Z: {dimensions.z}")
+            else:
+                print(f"Object '{object_name}' not found in the scene.")
+            if needle_object:
+                # 确保对象有尺寸数据
+                dimensions = needle_object.dimensions
+                print(f"The size of {needle_name} is:")
+                print(f"X: {dimensions.x}, Y: {dimensions.y}, Z: {dimensions.z}")
+            else:
+                print(f"Object '{needle_name}' not found in the scene.")
+                
+
+            if check_objects_intersection(object_name, needle_name):
+                print(f"'{object_name}' 和 '{needle_name}' 相交了！")
+                raise Exception(f"'{object_name}' 和 '{needle_name}' 相交了！")
+            else:
+                # print(f"'{object1}' 和 '{object2}' 没有相交。")
+                pass
+                                        
+                
