@@ -75,7 +75,7 @@ def main(
     
     rotate_object_y_axis_by_name('rect', angle)
     
-    target_location = (1, 0, 3.8)
+    target_location = (1, 0, 2)
     camera_location = (random.uniform(1, 1), random.uniform(23, 23), random.uniform(3, 3))
     setting_camera(camera_location, target_location, len_=90)
     render_scene()
