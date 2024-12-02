@@ -20,42 +20,66 @@ refraction_indices = {
         "Glass (Crown)": (1.530, 1.540),
         "Glass (Flint)": (1.610, 1.640),
         "Water": 1.343,
-        "Diamond": 2.440
+        "Diamond": 2.440,
+        "Quartz": 1.546,
+        "Acrylic": 1.490,
+        "Sapphire": 1.790,
+        "Emerald": 1.570
     },
     "Blue (450-495 nm)": {
         "Air": 1.0003,
         "Glass (Crown)": (1.520, 1.530),
         "Glass (Flint)": (1.600, 1.620),
         "Water": 1.342,
-        "Diamond": 2.430
+        "Diamond": 2.430,
+        "Quartz": 1.544,
+        "Acrylic": 1.488,
+        "Sapphire": 1.788,
+        "Emerald": 1.568
     },
     "Green (495-570 nm)": {
         "Air": 1.0003,
         "Glass (Crown)": (1.517, 1.523),
         "Glass (Flint)": (1.595, 1.615),
         "Water": 1.341,
-        "Diamond": 2.415
+        "Diamond": 2.415,
+        "Quartz": 1.543,
+        "Acrylic": 1.487,
+        "Sapphire": 1.787,
+        "Emerald": 1.567
     },
     "Yellow (570-590 nm)": {
         "Air": 1.0003,
         "Glass (Crown)": (1.515, 1.520),
         "Glass (Flint)": (1.590, 1.610),
         "Water": 1.340,
-        "Diamond": 2.407
+        "Diamond": 2.407,
+        "Quartz": 1.542,
+        "Acrylic": 1.486,
+        "Sapphire": 1.786,
+        "Emerald": 1.566
     },
     "Orange (590-620 nm)": {
         "Air": 1.0003,
         "Glass (Crown)": (1.514, 1.518),
         "Glass (Flint)": (1.585, 1.605),
         "Water": 1.339,
-        "Diamond": 2.400
+        "Diamond": 2.400,
+        "Quartz": 1.541,
+        "Acrylic": 1.485,
+        "Sapphire": 1.785,
+        "Emerald": 1.565
     },
     "Red (620-750 nm)": {
         "Air": 1.0003,
         "Glass (Crown)": (1.513, 1.516),
         "Glass (Flint)": (1.580, 1.600),
         "Water": 1.337,
-        "Diamond": 2.390
+        "Diamond": 2.390,
+        "Quartz": 1.540,
+        "Acrylic": 1.484,
+        "Sapphire": 1.784,
+        "Emerald": 1.564
     }
 }
 
@@ -143,7 +167,6 @@ def render_image(output_path, resolution_x=1920, resolution_y=1080, samples=128)
     bpy.context.scene.cycles.denoising_type = 'OPTIX'  # Use 'CUDA' if OptiX is unavailable
     print('GPU Denoising Enabled')
     bpy.context.scene.cycles.device = 'GPU'
-    bpy.ops.render.render(write_still=True)
 
     # 触发设备检测
     cycles_preferences.get_devices()
@@ -507,10 +530,10 @@ def presetting():
   else:
       print("未找到摄像机，无法设置活动摄像机。")
 GPU_available = False
-while not GPU_available:
-  GPU_available_list = check_gpu_free()
-  GPU_available = len(GPU_available_list) > 0
-  time.sleep(10)
+# while not GPU_available:
+#   GPU_available_list = check_gpu_free()
+#   GPU_available = len(GPU_available_list) > 0
+#   time.sleep(10)
 
 presetting()
 prism_angle = calculate_angle(2, 1)
@@ -529,89 +552,93 @@ if not os.path.exists(csv):
   with open(csv, "w") as f:
     f.write("incident_x;incident_y;n;incident_degree;theta_1;theta_2;theta_3;theta_4;theta_5;theta_6;incident_start_point;incline_end_point;line_start_point;line_end_point;out_start_point;out_end_point;light;limit;img_path\n")
 
-for light in refraction_indices.keys():
-  print("current light is:", light)
-  reflection = refraction_indices[light]["Glass (Crown)"]
-  reflection = (reflection[0] + reflection[1]) / 2
-  limit = math.asin(refraction_indices[light]["Air"]/reflection)
-  limit = math.degrees(limit)
-  print("limit:", limit)  
-  
-  for i in tqdm(np.arange(0.1, 0.85, 0.05), desc="Processing"):
-    incident_x = i
-    incident_y = get_y(incident_x)
-    count = 0
-    for theta_1 in np.arange(0, 90, 2):
-      timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-      png_filename = f"{light}_{timestamp}.png"
-      incident_degree = theta_1 - (90-prism_angle)
-      # if theta_1 < 90 - prism_angle:
-      #   incident_degree = 90 - prism_angle - theta_1
-      # else:
-      #   incident_degree = -(theta_1 - (90-prism_angle))
+materials = ['Quartz', 'Acrylic', 'Sapphire', 'Emerald']
 
-      theta_2 = math.degrees(math.asin(
-          math.sin(math.radians(theta_1)) / reflection
-      ))
-      theta_5 = 90 - theta_2
-      theta_6 = 180-(180 - prism_angle * 2) - theta_5
+for material in materials:
+  for light in refraction_indices.keys():
+    print("current light is:", light)
+    # reflection = refraction_indices[light]["Glass (Crown)"]
+    # reflection = (reflection[0] + reflection[1]) / 2
+    reflection = refraction_indices[light][material]
+    limit = math.asin(refraction_indices[light]["Air"]/reflection)
+    limit = math.degrees(limit)
+    print("limit:", limit)  
+    
+    for i in tqdm(np.arange(0.1, 0.85, 0.05), desc="Processing"):
+      incident_x = i
+      incident_y = get_y(incident_x)
+      count = 0
+      for theta_1 in np.arange(0, 90, 2):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        png_filename = f"{light}_{timestamp}.png"
+        incident_degree = theta_1 - (90-prism_angle)
+        # if theta_1 < 90 - prism_angle:
+        #   incident_degree = 90 - prism_angle - theta_1
+        # else:
+        #   incident_degree = -(theta_1 - (90-prism_angle))
+
+        theta_2 = math.degrees(math.asin(
+            math.sin(math.radians(theta_1)) / reflection
+        ))
+        theta_5 = 90 - theta_2
+        theta_6 = 180-(180 - prism_angle * 2) - theta_5
 
 
-      theta_3 = 90 - theta_6
-      
-      if theta_3 < limit:
-        print(f"theta_3 is {theta_3} < {limit} (limit degree), skip")
-        continue
-      else:
-        theta_4 = 90 - theta_3
-        theta_5 = 180 - prism_angle - theta_4
+        theta_3 = 90 - theta_6
         
-        incident_start_point = (incident_x, 0.012055, incident_y)
-        incline_end_point = (incident_x * 50, 0.012055, calculate_x(incident_degree, incident_start_point, incident_x * 50))
-        
-        line_degree = 90 - prism_angle
-        line_degree = 90 - line_degree
-        line_degree += theta_2 
+        if theta_3 < limit:
+          print(f"theta_3 is {theta_3} < {limit} (limit degree), skip")
+          continue
+        else:
+          theta_4 = 90 - theta_3
+          theta_5 = 180 - prism_angle - theta_4
+          
+          incident_start_point = (incident_x, 0.012055, incident_y)
+          incline_end_point = (incident_x * 50, 0.012055, calculate_x(incident_degree, incident_start_point, incident_x * 50))
+          
+          line_degree = 90 - prism_angle
+          line_degree = 90 - line_degree
+          line_degree += theta_2 
 
 
-        line1_point1 = (0,2)
-        line1_point2 = (-1, 0)
-        point_on_line = (incident_start_point[0], incident_start_point[-1])  # 圆心
-        angle = -(90+line_degree) # 第二条直线绕圆心旋转的角度
-        intersection, point_line2, rotated_point = calculate_intersection_with_rotation(
-            line1_point1, line1_point2, point_on_line, angle
-        )
+          line1_point1 = (0,2)
+          line1_point2 = (-1, 0)
+          point_on_line = (incident_start_point[0], incident_start_point[-1])  # 圆心
+          angle = -(90+line_degree) # 第二条直线绕圆心旋转的角度
+          intersection, point_line2, rotated_point = calculate_intersection_with_rotation(
+              line1_point1, line1_point2, point_on_line, angle
+          )
 
 
-        line_start_point = incident_start_point
-        line_end_point = (intersection[0], 0.012055, intersection[1])
+          line_start_point = incident_start_point
+          line_end_point = (intersection[0], 0.012055, intersection[1])
 
-        out_start_point = line_end_point
+          out_start_point = line_end_point
 
 
-        theta_3 = (180 - theta_4 - theta_6)/2
-        out_degree_1 = 90 - (90 - (90 - prism_angle) + theta_2)
-        out_degree = 2 * theta_3 - out_degree_1
+          theta_3 = (180 - theta_4 - theta_6)/2
+          out_degree_1 = 90 - (90 - (90 - prism_angle) + theta_2)
+          out_degree = 2 * theta_3 - out_degree_1
 
-        base_side_start = (-1,0)
-        base_side_end = (1,0)
-        point_on_out = (line_end_point[0], line_end_point[-1])   # 第二条直线的初始点
-        intersection, point_line2, rotated_point = calculate_intersection_with_rotation_out(
-            base_side_start, base_side_end, point_on_out, out_degree
-        )
+          base_side_start = (-1,0)
+          base_side_end = (1,0)
+          point_on_out = (line_end_point[0], line_end_point[-1])   # 第二条直线的初始点
+          intersection, point_line2, rotated_point = calculate_intersection_with_rotation_out(
+              base_side_start, base_side_end, point_on_out, out_degree
+          )
 
-        # plot_lines_and_intersection(base_side_start, base_side_end, center, point_on_line, -out_degree, intersection, rotated_point)
-        out_end_point = (intersection[0], 0.012055, intersection[1])
+          # plot_lines_and_intersection(base_side_start, base_side_end, center, point_on_line, -out_degree, intersection, rotated_point)
+          out_end_point = (intersection[0], 0.012055, intersection[1])
 
-        align_cylinder_to_coordinates("incident", incident_start_point, incline_end_point)
-        align_cylinder_to_coordinates("line", line_start_point, line_end_point)
-        align_cylinder_to_coordinates("out", out_start_point, out_end_point)
+          align_cylinder_to_coordinates("incident", incident_start_point, incline_end_point)
+          align_cylinder_to_coordinates("line", line_start_point, line_end_point)
+          align_cylinder_to_coordinates("out", out_start_point, out_end_point)
 
-        current_time = time.time()
-        output_file = f"{database}/{png_filename}"
-        # save blend file
-        # bpy.ops.wm.save_as_mainfile(filepath=f"/Users/liu/Desktop/blender_img/{current_time}_prism_reflection.blend")
-        with open(csv, "a") as f:
-          f.write(f"{incident_x};{incident_y};{reflection};{incident_degree};{theta_1};{theta_2};{theta_3};{theta_4};{theta_5};{theta_6};{tuple(incident_start_point)};{tuple(incline_end_point)};{tuple(line_start_point)};{tuple(line_end_point)};{tuple(out_start_point)};{tuple(out_end_point)};{light};{limit};{output_file}\n")
+          current_time = time.time()
+          output_file = f"{database}/{png_filename}"
+          # save blend file
+          # bpy.ops.wm.save_as_mainfile(filepath=f"/Users/liu/Desktop/blender_img/{current_time}_prism_reflection.blend")
+          with open(csv, "a") as f:
+            f.write(f"{incident_x};{incident_y};{reflection};{incident_degree};{theta_1};{theta_2};{theta_3};{theta_4};{theta_5};{theta_6};{tuple(incident_start_point)};{tuple(incline_end_point)};{tuple(line_start_point)};{tuple(line_end_point)};{tuple(out_start_point)};{tuple(out_end_point)};{light};{limit};{output_file};{material}\n")
 
-        render_image(output_path=output_file, resolution_x=580, resolution_y=440, samples=100)
+          render_image(output_path=output_file, resolution_x=580, resolution_y=440, samples=100)

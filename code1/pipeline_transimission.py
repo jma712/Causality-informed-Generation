@@ -18,45 +18,68 @@ refraction_indices = {
         "Glass (Crown)": (1.530, 1.540),
         "Glass (Flint)": (1.610, 1.640),
         "Water": 1.343,
-        "Diamond": 2.440
+        "Diamond": 2.440,
+        "Quartz": 1.546,
+        "Acrylic": 1.490,
+        "Sapphire": 1.790,
+        "Emerald": 1.570
     },
     "Blue (450-495 nm)": {
         "Air": 1.0003,
         "Glass (Crown)": (1.520, 1.530),
         "Glass (Flint)": (1.600, 1.620),
         "Water": 1.342,
-        "Diamond": 2.430
+        "Diamond": 2.430,
+        "Quartz": 1.544,
+        "Acrylic": 1.488,
+        "Sapphire": 1.788,
+        "Emerald": 1.568
     },
     "Green (495-570 nm)": {
         "Air": 1.0003,
         "Glass (Crown)": (1.517, 1.523),
         "Glass (Flint)": (1.595, 1.615),
         "Water": 1.341,
-        "Diamond": 2.415
+        "Diamond": 2.415,
+        "Quartz": 1.543,
+        "Acrylic": 1.487,
+        "Sapphire": 1.787,
+        "Emerald": 1.567
     },
     "Yellow (570-590 nm)": {
         "Air": 1.0003,
         "Glass (Crown)": (1.515, 1.520),
         "Glass (Flint)": (1.590, 1.610),
         "Water": 1.340,
-        "Diamond": 2.407
+        "Diamond": 2.407,
+        "Quartz": 1.542,
+        "Acrylic": 1.486,
+        "Sapphire": 1.786,
+        "Emerald": 1.566
     },
     "Orange (590-620 nm)": {
         "Air": 1.0003,
         "Glass (Crown)": (1.514, 1.518),
         "Glass (Flint)": (1.585, 1.605),
         "Water": 1.339,
-        "Diamond": 2.400
+        "Diamond": 2.400,
+        "Quartz": 1.541,
+        "Acrylic": 1.485,
+        "Sapphire": 1.785,
+        "Emerald": 1.565
     },
     "Red (620-750 nm)": {
         "Air": 1.0003,
         "Glass (Crown)": (1.513, 1.516),
         "Glass (Flint)": (1.580, 1.600),
         "Water": 1.337,
-        "Diamond": 2.390
+        "Diamond": 2.390,
+        "Quartz": 1.540,
+        "Acrylic": 1.484,
+        "Sapphire": 1.784,
+        "Emerald": 1.564
     }
 }
-
 
 def render_image(output_path, resolution_x=1920, resolution_y=1080, samples=128):
     """
@@ -81,7 +104,6 @@ def render_image(output_path, resolution_x=1920, resolution_y=1080, samples=128)
     bpy.context.scene.cycles.denoising_type = 'OPTIX'  # Use 'CUDA' if OptiX is unavailable
     print('GPU Denoising Enabled')
     bpy.context.scene.cycles.device = 'GPU'
-    bpy.ops.render.render(write_still=True)
 
     # 触发设备检测
     cycles_preferences.get_devices()
@@ -463,126 +485,128 @@ cwd = os.getcwd()
 database = "/".join([cwd, dataset])
 # data_base = os.path.join(cwd, data_base)
 
+materials = ['Acrylic', 'Sapphire', 'Emerald']
+for material in materials:
+  if not os.path.exists(database):
+    os.makedirs(database)
+  csv = os.path.join(database, "transmission.csv")
+  print("csv:", csv)
+  if not os.path.exists(csv):
+    print("The file does not exist")
+    # add header
+    with open(csv, "w") as f:
+      f.write("incident_x;incident_y;n;incident_degree;theta_1;theta_2;theta_3;theta_4;theta_5;theta_6;theta_7;theta_8;theta_9;theta_10;incident_start_point;incline_end_point;line_start_point;line_end_point;out_start_point;out_end_point;light;limit;img_path\n")
 
-if not os.path.exists(database):
-  os.makedirs(database)
-csv = os.path.join(database, "transmission.csv")
-print("csv:", csv)
-if not os.path.exists(csv):
-  print("The file does not exist")
-  # add header
-  with open(csv, "w") as f:
-    f.write("incident_x;incident_y;n;incident_degree;theta_1;theta_2;theta_3;theta_4;theta_5;theta_6;theta_7;theta_8;theta_9;theta_10;incident_start_point;incline_end_point;line_start_point;line_end_point;out_start_point;out_end_point;light;limit;img_path\n")
-
-for light in refraction_indices.keys():
-  print("current light is:", light)
-  reflection = refraction_indices[light]["Glass (Crown)"]
-  reflection = (reflection[0] + reflection[1]) / 2
-  limit = math.asin(refraction_indices[light]["Air"]/reflection)
-  limit = math.degrees(limit)
-  # Generate a timestamp
-
-
-  for i in tqdm(np.arange(0.1, 0.85, 0.05), desc="Processing"):
-    incident_x = i
-    incident_y = get_y(incident_x)
-    for theta_1 in np.arange(0, 90, 3):
-      timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-      # Use the timestamp in a filename
-      png_filename = f"{light}_{timestamp}.png"
-      incident_degree = theta_1 - (90-prism_angle)
-
-      theta_2 = math.degrees(math.asin(
-          math.sin(math.radians(theta_1)) / reflection
-      ))
-
-      theta_5 = 90 - theta_2
-
-      theta_6 = 180-(180 - prism_angle * 2) - theta_5
+  for light in refraction_indices.keys():
+    print("current light is:", light)
+    # reflection = refraction_indices[light]["Glass (Crown)"]
+    # reflection = (reflection[0] + reflection[1]) / 2
+    reflection = refraction_indices[light][material]
+    limit = math.asin(refraction_indices[light]["Air"]/reflection)
+    limit = math.degrees(limit)
+    # Generate a timestamp
 
 
-      theta_3 = 90 - theta_6
-      if theta_3 > limit:
-        print(f"theta_3 is {theta_3} > {limit} (limit degree), skip")
-        continue
-      # print("prism:",prism_angle)
-      # print("incident_degree:",incident_degree)
-      # print("theta_1:", theta_1)
-      # print("theta_2:", theta_2)
-      # print("theta_5:", theta_5)
-      # print("theta_6:", theta_6)
-      # print("theta_3:", theta_3)
-      theta_4 = math.degrees(math.asin(
-          (reflection / refraction_indices[light]["Air"] ) * math.sin(math.radians(theta_3))
-      ))
+    for i in tqdm(np.arange(0.1, 0.85, 0.05), desc="Processing"):
+      incident_x = i
+      incident_y = get_y(incident_x)
+      for theta_1 in np.arange(0, 90, 2):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-      theta_7 = 90 - theta_4
+        # Use the timestamp in a filename
+        png_filename = f"{light}_{timestamp}.png"
+        incident_degree = theta_1 - (90-prism_angle)
 
-      theta_8 = 90 - ((180  - prism_angle - 90) + theta_7)
+        theta_2 = math.degrees(math.asin(
+            math.sin(math.radians(theta_1)) / reflection
+        ))
 
-      line_degree = 90 - prism_angle
-      line_degree = 90 - line_degree
-      line_degree += theta_2 
+        theta_5 = 90 - theta_2
+
+        theta_6 = 180-(180 - prism_angle * 2) - theta_5
 
 
-      incident_start_point = (incident_x, 0.012055, incident_y)
-      incline_end_point = (incident_x * 50, 0.012055, calculate_x(incident_degree, incident_start_point, incident_x * 50))
+        theta_3 = 90 - theta_6
+        if theta_3 > limit:
+          print(f"theta_3 is {theta_3} > {limit} (limit degree), skip")
+          continue
+        # print("prism:",prism_angle)
+        # print("incident_degree:",incident_degree)
+        # print("theta_1:", theta_1)
+        # print("theta_2:", theta_2)
+        # print("theta_5:", theta_5)
+        # print("theta_6:", theta_6)
+        # print("theta_3:", theta_3)
+        theta_4 = math.degrees(math.asin(
+            (reflection / refraction_indices[light]["Air"] ) * math.sin(math.radians(theta_3))
+        ))
 
-      line1_point1 = (0,2)
-      line1_point2 = (-1, 0)
-      center = (incident_start_point[0], incident_start_point[-1])  # 圆心
-      point_on_line = center  # 第二条直线的初始点
-      # print("line_degree:", line_degree)
-      angle = -(90+line_degree) # 第二条直线绕圆心旋转的角度
-      # print("angle:", angle)
-      intersection, point_line2, rotated_point = calculate_intersection_with_rotation(
-          line1_point1, line1_point2, point_on_line, angle
-      )
+        theta_7 = 90 - theta_4
 
+        theta_8 = 90 - ((180  - prism_angle - 90) + theta_7)
 
-      # plot_lines_and_intersection(line1_point1, line1_point2, center, point_on_line, angle, intersection, rotated_point)
-      line_start_point = incident_start_point
-      # print(intersection)
-      line_end_point = (intersection[0], 0.012055, intersection[1])
-
-      out_start_point = line_end_point
-
-      theta_9 = 90 - prism_angle
-      theta_10 = 90+theta_9 + theta_7
-      # print("theta_4:", theta_4)
-      # print("theta_7:", theta_7)
-      # print("theta_8:", theta_8)
-      # print("theta_9:", theta_9)
-      # print("theta_10:", theta_10)
+        line_degree = 90 - prism_angle
+        line_degree = 90 - line_degree
+        line_degree += theta_2 
 
 
+        incident_start_point = (incident_x, 0.012055, incident_y)
+        incline_end_point = (incident_x * 50, 0.012055, calculate_x(incident_degree, incident_start_point, incident_x * 50))
 
-      base_side_start = (-1,0)
-      base_side_end = (1,0)
-      # print(-theta_10)
-      point_on_out = (line_end_point[0], line_end_point[-1])  
-      intersection, point_line2, rotated_point = calculate_intersection_with_rotation_2(
-          base_side_start, base_side_end, point_on_out, -theta_10
-      )
-      # print(intersection)
+        line1_point1 = (0,2)
+        line1_point2 = (-1, 0)
+        center = (incident_start_point[0], incident_start_point[-1])  # 圆心
+        point_on_line = center  # 第二条直线的初始点
+        # print("line_degree:", line_degree)
+        angle = -(90+line_degree) # 第二条直线绕圆心旋转的角度
+        # print("angle:", angle)
+        intersection, point_line2, rotated_point = calculate_intersection_with_rotation(
+            line1_point1, line1_point2, point_on_line, angle
+        )
 
-      # plot_lines_and_intersection(base_side_start, base_side_end, center, point_on_line, -theta_10, intersection, rotated_point)
-      out_end_point = (intersection[0], 0.012055, intersection[-1])
 
-      # 调整圆柱体的位置和方向
-      align_cylinder_to_coordinates("incident", incident_start_point, incline_end_point)
-      align_cylinder_to_coordinates("line", line_start_point, line_end_point)
-      align_cylinder_to_coordinates("out", out_start_point, out_end_point)
-      # print(-theta_10, out_start_point, out_end_point)
+        # plot_lines_and_intersection(line1_point1, line1_point2, center, point_on_line, angle, intersection, rotated_point)
+        line_start_point = incident_start_point
+        # print(intersection)
+        line_end_point = (intersection[0], 0.012055, intersection[1])
 
-      # 示例用法
-      # current_time = time.time().date()
-      output_file = f"{database}/{png_filename}"
-      # save blend file
-      # bpy.ops.wm.save_as_mainfile(filepath=f"./{current_time}_prism.blend")
+        out_start_point = line_end_point
 
-      render_image(output_path=output_file, resolution_x=580, resolution_y=430, samples=100)
-      # save data into csv
-      with open(csv, "a") as f:
-        f.write(f"{incident_x};{incident_y};{reflection};{incident_degree};{theta_1};{theta_2};{theta_3};{theta_4};{theta_5};{theta_6};{theta_7};{theta_8};{theta_9};{theta_10};{incident_start_point};{incline_end_point};{line_start_point};{line_end_point};{out_start_point};{out_end_point};{light};{limit};{output_file}\n")
+        theta_9 = 90 - prism_angle
+        theta_10 = 90+theta_9 + theta_7
+        # print("theta_4:", theta_4)
+        # print("theta_7:", theta_7)
+        # print("theta_8:", theta_8)
+        # print("theta_9:", theta_9)
+        # print("theta_10:", theta_10)
+
+
+
+        base_side_start = (-1,0)
+        base_side_end = (1,0)
+        # print(-theta_10)
+        point_on_out = (line_end_point[0], line_end_point[-1])  
+        intersection, point_line2, rotated_point = calculate_intersection_with_rotation_2(
+            base_side_start, base_side_end, point_on_out, -theta_10
+        )
+        # print(intersection)
+
+        # plot_lines_and_intersection(base_side_start, base_side_end, center, point_on_line, -theta_10, intersection, rotated_point)
+        out_end_point = (intersection[0], 0.012055, intersection[-1])
+
+        # 调整圆柱体的位置和方向
+        align_cylinder_to_coordinates("incident", incident_start_point, incline_end_point)
+        align_cylinder_to_coordinates("line", line_start_point, line_end_point)
+        align_cylinder_to_coordinates("out", out_start_point, out_end_point)
+        # print(-theta_10, out_start_point, out_end_point)
+
+        # 示例用法
+        # current_time = time.time().date()
+        output_file = f"{database}/{png_filename}"
+        # save blend file
+        # bpy.ops.wm.save_as_mainfile(filepath=f"./{current_time}_prism.blend")
+
+        render_image(output_path=output_file, resolution_x=580, resolution_y=430, samples=100)
+        # save data into csv
+        with open(csv, "a") as f:
+          f.write(f"{incident_x};{incident_y};{reflection};{incident_degree};{theta_1};{theta_2};{theta_3};{theta_4};{theta_5};{theta_6};{theta_7};{theta_8};{theta_9};{theta_10};{incident_start_point};{incline_end_point};{line_start_point};{line_end_point};{out_start_point};{out_end_point};{light};{limit};{output_file};{material}\n")
