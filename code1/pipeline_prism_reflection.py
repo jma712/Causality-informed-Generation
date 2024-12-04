@@ -24,7 +24,9 @@ refraction_indices = {
         "Quartz": 1.546,
         "Acrylic": 1.490,
         "Sapphire": 1.790,
-        "Emerald": 1.570
+        "Emerald": 1.570,
+        "Ruby": 1.770,
+        "Topaz": 1.620
     },
     "Blue (450-495 nm)": {
         "Air": 1.0003,
@@ -35,7 +37,9 @@ refraction_indices = {
         "Quartz": 1.544,
         "Acrylic": 1.488,
         "Sapphire": 1.788,
-        "Emerald": 1.568
+        "Emerald": 1.568,
+        "Ruby": 1.769,
+        "Topaz": 1.618
     },
     "Green (495-570 nm)": {
         "Air": 1.0003,
@@ -46,7 +50,9 @@ refraction_indices = {
         "Quartz": 1.543,
         "Acrylic": 1.487,
         "Sapphire": 1.787,
-        "Emerald": 1.567
+        "Emerald": 1.567,
+        "Ruby": 1.768,
+        "Topaz": 1.617
     },
     "Yellow (570-590 nm)": {
         "Air": 1.0003,
@@ -57,7 +63,9 @@ refraction_indices = {
         "Quartz": 1.542,
         "Acrylic": 1.486,
         "Sapphire": 1.786,
-        "Emerald": 1.566
+        "Emerald": 1.566,
+        "Ruby": 1.767,
+        "Topaz": 1.616
     },
     "Orange (590-620 nm)": {
         "Air": 1.0003,
@@ -68,7 +76,9 @@ refraction_indices = {
         "Quartz": 1.541,
         "Acrylic": 1.485,
         "Sapphire": 1.785,
-        "Emerald": 1.565
+        "Emerald": 1.565,
+        "Ruby": 1.766,
+        "Topaz": 1.615
     },
     "Red (620-750 nm)": {
         "Air": 1.0003,
@@ -79,7 +89,9 @@ refraction_indices = {
         "Quartz": 1.540,
         "Acrylic": 1.484,
         "Sapphire": 1.784,
-        "Emerald": 1.564
+        "Emerald": 1.564,
+        "Ruby": 1.765,
+        "Topaz": 1.614
     }
 }
 
@@ -552,7 +564,7 @@ if not os.path.exists(csv):
   with open(csv, "w") as f:
     f.write("incident_x;incident_y;n;incident_degree;theta_1;theta_2;theta_3;theta_4;theta_5;theta_6;incident_start_point;incline_end_point;line_start_point;line_end_point;out_start_point;out_end_point;light;limit;img_path\n")
 
-materials = ['Quartz', 'Acrylic', 'Sapphire', 'Emerald']
+materials = ["Topaz", "Ruby"]
 
 for material in materials:
   for light in refraction_indices.keys():
