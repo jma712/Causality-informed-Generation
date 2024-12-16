@@ -1,28 +1,26 @@
 import bpy
 import os
 import sys
-sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")
+import subprocess
+res = subprocess.run(["which", "python"],capture_output=True, text=True).stdout
+sys.path.append(res.split("bin")[0] + "lib/python3.11/site-packages/")
 
 import argparse
 import sys
 import random
 from mathutils import Vector
 import math
-import numpy as np
 from typing import Tuple, Union, Optional
 from dataclasses import dataclass
 from datetime import datetime
 import csv
-import matplotlib.pyplot as plt
-
-sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")  # 请根据实际路径确认
-from tqdm import tqdm
+# from tqdm import tqdm
 
 # 设置颜色管理为标准模式
 bpy.context.scene.view_settings.view_transform = 'Standard'
 bpy.context.scene.display_settings.display_device = 'sRGB'
 
-
+# ![](https://cdn.jsdelivr.net/gh/DishengL/ResearchPics/seesaw_graph.png)
 def setting_camera(location, target, scene_bounds=((-30, 30), (-30, 30), (0, 30))):
     """
     This function sets the camera location and target.
@@ -65,7 +63,6 @@ def setting_camera(location, target, scene_bounds=((-30, 30), (-30, 30), (0, 30)
     bpy.context.scene.camera = camera
     print(f"Camera location set to {camera.location}, pointing towards {target}")
     
-    
 def load_blend_file(filepath):
     """导入指定的 .blend 文件中的所有对象。"""
     with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
@@ -74,6 +71,27 @@ def load_blend_file(filepath):
         if obj is not None:
             bpy.context.collection.objects.link(obj)
     print("场景已导入成功！")
+
+def set_gpu_rendering():
+    """设置 GPU 渲染设备。"""
+    # 确保使用 Cycles 渲染引擎
+    bpy.context.scene.render.engine = 'CYCLES'
+
+    # 设置设备为 GPU
+    preferences = bpy.context.preferences.addons['cycles'].preferences
+    preferences.compute_device_type = 'CUDA'  # 可选：'OPTIX', 'HIP', 'METAL'
+
+    # 启用所有可用的 GPU 设备
+    for device in preferences.get_devices():
+        if device.type == 'CUDA' or device.type == 'OPTIX' or device.type == 'METAL':
+            device.use = True
+            print(f"启用设备：{device.name}")
+        else:
+            print(f"跳过设备：{device.name}")
+
+    # 设置场景使用 GPU
+    bpy.context.scene.cycles.device = 'GPU'
+    print("GPU 渲染已启用。")
 
 def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png"):
     """设置渲染参数，包括分辨率、格式和输出路径。"""
@@ -292,10 +310,18 @@ def calculate(length = 5) -> dict:
   right_mass = mass * (right_arm / length)
   left = random_left_weight * left_arm  + left_mass * left_arm/2
   right = random_right_weight * right_arm + right_mass * right_arm/2
+  continuous_result = left - right + random.uniform(abs(left - right)-0.1, abs(left - right)*0.1)
   
   if left > right:
-    result = "left"
+    discrete_result = "left"
   elif left < right:
+    discrete_result = "right"
+  else:
+    discrete_result = "balance"
+    
+  if continuous_result > 0:
+    result = "left"
+  elif continuous_result < 0:
     result = "right"
   else:
     result = "balance"
@@ -308,6 +334,8 @@ def calculate(length = 5) -> dict:
           "lever_x_offset": random_offset,
           "weight_value_l": random_left_weight,
           "weight_value_r": random_right_weight,
+          "discrete_result": discrete_result,
+          "continuous_result(left-right+Noise(abs(l-r)*.1))": continuous_result,
           "result": result
       }
 
@@ -316,8 +344,7 @@ def calculate(length = 5) -> dict:
 
 def add_seesaw(param = None, camera_location = (0, -7, 2), camera_rotation = (1.2, 0, 0), 
                          camera_focal_length = 25):
-    """创建完整的跷跷板模型。"""
-    param = calculate()
+    param = calculate()    # get all of parameters for create a seesaw scene
 
     pivot = create_pivot(radius=param['pivot_r'],
                          location=(0, 0, 1*param['pivot_r']))
@@ -370,7 +397,6 @@ def add_seesaw(param = None, camera_location = (0, -7, 2), camera_rotation = (1.
   
 
 def main(
-    background = 'blank',
     scene = 'scene',
     render_output_path = "../database/",
     save_path = "../database/modified_scene.blend",
@@ -382,8 +408,7 @@ def main(
     current_time = datetime.now()
     file_name = current_time.strftime("%Y%m%d_%H%M%S")  # 格式化为 YYYYMMDD_HHMMSS
     file_name = os.path.join(render_output_path, file_name+".png")
-    if 'blank' in background.lower():
-      background = "./database/blank_background.blend"
+    background = "./database/background_magnet.blend"
     load_blend_file(background)
     if scene.lower() == "seesaw":
         param = add_seesaw()
@@ -394,14 +419,13 @@ def main(
 
     bpy.ops.object.camera_add()
     camera = bpy.context.object
-    print()
     fit_camera_to_objects_with_random_position(camera, ["Lever", "Weight", "Weight.001", "Pivot"], fixed=True) 
     render_scene()
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
         writer.writerow([iter, param["weight_value_l"],  param["weight_value_r"], param["lever_length"]-param["lever_x_offset"],
-                         param["lever_length"] + param["lever_x_offset"], param['result'], file_name])
+                         param["lever_length"] + param["lever_x_offset"], param['result'], param["discrete_result"], param['continuous_result(left-right+Noise(abs(l-r)*.1))'], file_name])
 
 
 def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2, over = False, fixed = False):
@@ -481,7 +505,6 @@ def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Blender Rendering Script")
-
     parser.add_argument("--iter", type=int, help="initial number")
     parser.add_argument("--resoluation", type=int, default=128, help="resolution of the image")
     parser.add_argument("--size_of_iteration", '-S', type=int, help="the size of each iteration")
@@ -491,7 +514,7 @@ if __name__ == "__main__":
 
     # CSV 文件路径
     resolution = arguments.resoluation
-    csv_file = f"./database/rendered_seesaw_{resolution}/seesaw_scene_{resolution}P.csv"
+    csv_file = f"./database/rendered_seesaw_{resolution}P/seesaw_scene_{resolution}P.csv"
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
@@ -501,7 +524,7 @@ if __name__ == "__main__":
         print(os.getcwd())
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["iter", "left_weight", "right_weight", "left_arm", "right_arm", 'result(up)',"images"])
+            writer.writerow(["iter", "left_weight", "right_weight", "left_arm", "right_arm", 'result(up)', "result_without_noise", "continuous_result_with_noise", "images"])
     else:
         init = False
 
@@ -515,14 +538,12 @@ if __name__ == "__main__":
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
         # 设置背景、场景和渲染输出路径
-        background = "./database/blank_background.blend"
         scene = "Seesaw"
-        render_output_path = f"./database/rendered_seesaw_{resolution}/"
+        render_output_path = f"./database/rendered_seesaw_{resolution}P/"
 
         # 使用起始帧数循环渲染 iteration_time 个批次
-        for i in tqdm(range(arguments.iter, arguments.iter + iteration_time), desc="Rendering"):
+        for i in (range(arguments.iter, arguments.iter + iteration_time)):#, desc="Rendering"):
             main(
-                background=background,
                 scene=scene,
                 render_output_path=render_output_path,
                 csv_file=csv_file,

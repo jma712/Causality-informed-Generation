@@ -9,8 +9,6 @@ import random
 from mathutils import Vector
 import os
 import csv
-sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")  # 请根据实际路径确认
-from tqdm import tqdm
 
 
 material_density = {
@@ -223,13 +221,15 @@ def calculate_spring_deformation(weight, spring_constant, max_deformation):
     
     # 计算形变量
     deformation = weight / spring_constant  # x = F / k
+    noise = random.uniform(-0.05*deformation, 0.05*deformation)
+    deformation += noise
     
     # 限制形变量在最大允许范围内
     if deformation > max_deformation:
         deformation = max_deformation
         print("Warning: Deformation exceeded maximum limit. Limiting to max deformation.")
     
-    return deformation
+    return deformation, noise
 
 def resize_object_on_z_axis(object_name, scale_factor):
     """
@@ -393,7 +393,7 @@ def main(
 
     high = 1.3
     max_deformation = high * 0.83
-    deformation = calculate_spring_deformation(weight, spring_constant, max_deformation)
+    deformation, noise = calculate_spring_deformation(weight, spring_constant, max_deformation)
     
     spring = bpy.data.objects.get("spring")
     scale_factor = (high - deformation) /  high
@@ -434,7 +434,7 @@ def main(
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iter, weight,  high, deformation, spring_constant, f"{material}'s density:{material_density[material]}", (x,y,z), file_path])
+        writer.writerow([iter, weight,  high, deformation, noise, max_deformation, spring_constant, f"{material}'s density:{material_density[material]}", (x,y,z), file_path])
 
     return
 
@@ -452,16 +452,16 @@ if __name__ == "__main__":
     resolution =  arguments.resolution
 
     # CSV 文件路径
-    csv_file = f"./database/rendered_spring_{resolution}/spring_scene_{resolution}P.csv"
+    csv_file = f"./database/rendered_spring_{resolution}P/spring_scene_{resolution}P.csv"
     if arguments.circle:
-      csv_file = f"./database/rendered_spring_circle_{resolution}/spring_scene_circle_{resolution}P.csv"
+      csv_file = f"./database/rendered_spring_circle_{resolution}P/spring_scene_circle_{resolution}P.csv"
 
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["iter", "weight", "spring high", "deformation", "spring_constant", "matrial", "cube size", "img_path"])
+            writer.writerow(["iter", "weight", "spring high", "deformation", "noise", "max_deformation", "spring_constant", "matrial", "cube size", "img_path"])
 
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:
@@ -470,12 +470,12 @@ if __name__ == "__main__":
 
         # 设置背景、场景和渲染输出路径
         background = "./database/blank_background_spring.blend"
-        render_output_path = f"./database/rendered_spring_{resolution}/"
+        render_output_path = f"./database/rendered_spring_{resolution}P/"
         if arguments.circle:
           render_output_path = './database/rendered_spring_circle_{resolution}//'
 
         # 使用起始帧数循环渲染 iteration_time 个批次
-        for i in tqdm(range(arguments.iter, arguments.iter + iteration_size), desc="Rendering"):
+        for i in range(arguments.iter, arguments.iter + iteration_size):
             main(
                 background=background,
                 render_output_path=render_output_path,

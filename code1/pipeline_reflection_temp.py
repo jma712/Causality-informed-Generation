@@ -323,7 +323,7 @@ def main(
     set_render_parameters(output_path=render_output_path)
     # load_blend_file_backgournd("./database/reflection_space.blend")
     incident_point = generate_random_coordinates()
-    print(incident_point)
+    # print(incident_point)
     reflection_point = calculate_reflection_vector(incident_point)
     random_color = (random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1), 1)  # 随机 RGB，A 设置为 1
     incident_beam = create_laser_beam(name = "IncidentBeam", color = random_color)

@@ -1,22 +1,27 @@
 import bpy
 import os
 import sys
-sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")
+import subprocess
+res = subprocess.run(["which", "python"],capture_output=True, text=True).stdout
+
 
 import argparse
 import sys
 import random
 from mathutils import Vector
 import math
+
+# sys.path.append(res.split("bin")[0] + "lib/python3.12/site-packages/")
+sys.path.append("/home/lds/miniconda3/envs/joe/lib/python3.12/site-packages/")
+# sys.path.append("/usr/lib/python3.12/site-packages/")
 import numpy as np
 from typing import Tuple, Union, Optional
 from dataclasses import dataclass
 from datetime import datetime
 import csv
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
-sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")  # 请根据实际路径确认
-from tqdm import tqdm
+# graph: https://cdn.jsdelivr.net/gh/DishengL/ResearchPics/magnet_graph.png)
 
 # 设置颜色管理为标准模式
 bpy.context.scene.view_settings.view_transform = 'Standard'
@@ -36,6 +41,10 @@ class NodeInfo:
     field_direction: np.ndarray  # 磁场方向（单位向量）
     angle: float  # 与x轴的角度（弧度）
     angle_degrees: float  # 与x轴的角度（角度）
+    noised_field_direction: np.ndarray  # 加噪后的磁场方向（单位向量）
+    noised_angle: float  # 加噪后的角度（弧度）
+    noised_angle_degrees: float  # 加噪后的角度（角度）
+    noise: float  # 噪声大小
 
 def calculate_node_magnetic_info(
     magnet_center: Tuple[float, float],  # 磁铁中心位置
@@ -87,11 +96,12 @@ def calculate_node_magnetic_info(
     # 计算距离
     dist_n = np.linalg.norm(r_n)
     dist_s = np.linalg.norm(r_s)
-    
+    noise = "NAN"
     # 避免除零错误
     if dist_n < 1e-10 or dist_s < 1e-10:
         field_direction = np.array([0.0, 0.0])
         angle = 0.0
+        # raise ValueError("The node is too close to the magnet.")
     else:
         # 计算磁场向量
         field = strength * (r_n / (dist_n ** 3) - r_s / (dist_s ** 3))
@@ -101,65 +111,79 @@ def calculate_node_magnetic_info(
         if magnitude < 1e-10:
             field_direction = np.array([0.0, 0.0])
             angle = 0.0
+            raise ValueError("The magnetic field is too weak to be detected.")
         else:
             field_direction = field / magnitude
             angle = np.arctan2(field_direction[1], field_direction[0])
+            
+            
+            noise = np.random.normal(0, 0.1 * np.abs(field), size=field.shape)
+            # 在原始磁场上加噪声
+            noisy_field = field + noise
+            # 重新计算加噪后的方向
+            noisy_magnitude = np.linalg.norm(noisy_field)
+            noisy_field_direction = noisy_field / noisy_magnitude
+            noisy_angle = np.arctan2(noisy_field_direction[1], noisy_field_direction[0])
+
 
     result = NodeInfo(
         position=node,
         field_direction=field_direction,
         angle=angle,
-        angle_degrees=np.degrees(angle) % 360
+        angle_degrees=np.degrees(angle) % 360,
+        noised_field_direction = noisy_field_direction,
+        noised_angle = noisy_angle,
+        noised_angle_degrees = np.degrees(noisy_angle) % 360,
+        noise = noise
     )
     
     # 可视化部分
-    if visualize:
-        # 如果没有提供ax，创建新的图形
+    # if visualize:
+    #     # 如果没有提供ax，创建新的图形
         
-        fig, ax = plt.subplots(figsize=(10, 10))
+    #     fig, ax = plt.subplots(figsize=(10, 10))
             
-        # 绘制磁铁
-        ax.plot([south[0], north[0]], [south[1], north[1]], 'r-', linewidth=4, label='Magnet')
-        ax.plot(north[0], north[1], 'ro', markersize=10, label='N pole')
-        ax.plot(south[0], south[1], 'bo', markersize=10, label='S pole')
+    #     # 绘制磁铁
+    #     ax.plot([south[0], north[0]], [south[1], north[1]], 'r-', linewidth=4, label='Magnet')
+    #     ax.plot(north[0], north[1], 'ro', markersize=10, label='N pole')
+    #     ax.plot(south[0], south[1], 'bo', markersize=10, label='S pole')
         
-        # 绘制节点位置
-        ax.plot(node[0], node[1], 'go', markersize=8, label='Node')
+    #     # 绘制节点位置
+    #     ax.plot(node[0], node[1], 'go', markersize=8, label='Node')
         
-        # 绘制磁场方向
-        if not np.all(field_direction == 0):
-            # 箭头长度设为磁铁长度的1/4
-            arrow_length = magnet_length / 4
-            ax.quiver(node[0], node[1], 
-                     field_direction[0], field_direction[1],
-                     angles='xy', scale_units='xy', scale=1/arrow_length,
-                     color='g', width=0.005, label='Field Direction')
+    #     # 绘制磁场方向
+    #     if not np.all(field_direction == 0):
+    #         # 箭头长度设为磁铁长度的1/4
+    #         arrow_length = magnet_length / 4
+    #         ax.quiver(node[0], node[1], 
+    #                  field_direction[0], field_direction[1],
+    #                  angles='xy', scale_units='xy', scale=1/arrow_length,
+    #                  color='g', width=0.005, label='Field Direction')
         
-        # 添加文本信息
-        text_info = f'Angle: {result.angle_degrees:.1f}°'
-        ax.text(node[0], node[1] + magnet_length/8, text_info,
-                horizontalalignment='center', verticalalignment='bottom')
+    #     # 添加文本信息
+    #     text_info = f'Angle: {result.angle_degrees:.1f}°'
+    #     ax.text(node[0], node[1] + magnet_length/8, text_info,
+    #             horizontalalignment='center', verticalalignment='bottom')
         
-        # 设置图形属性
-        ax.grid(True)
-        ax.set_aspect('equal')
-        ax.legend()
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_title('Magnetic Field Analysis')
+    #     # 设置图形属性
+    #     ax.grid(True)
+    #     ax.set_aspect('equal')
+    #     ax.legend()
+    #     ax.set_xlabel('X')
+    #     ax.set_ylabel('Y')
+    #     ax.set_title('Magnetic Field Analysis')
         
-        # 自动调整坐标轴范围
-        margin = magnet_length
-        ax.set_xlim(min(south[0], north[0], node[0]) - margin,
-                   max(south[0], north[0], node[0]) + margin)
-        ax.set_ylim(min(south[1], north[1], node[1]) - margin,
-                   max(south[1], north[1], node[1]) + margin)
+    #     # 自动调整坐标轴范围
+    #     margin = magnet_length
+    #     ax.set_xlim(min(south[0], north[0], node[0]) - margin,
+    #                max(south[0], north[0], node[0]) + margin)
+    #     ax.set_ylim(min(south[1], north[1], node[1]) - margin,
+    #                max(south[1], north[1], node[1]) + margin)
         
-        if ax is not None:
-            plt.savefig(png_name)
+    #     if ax is not None:
+    #         plt.savefig(png_name)
     
     return result
-
 
 def clear_scene():
     """删除当前场景中的所有对象。"""
@@ -219,8 +243,6 @@ def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2,
     bpy.context.scene.camera = camera
     bpy.ops.view3d.camera_to_view_selected()
 
-
-
 def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=0):
     """
     导入指定的 .blend 文件中的所有对象，并调整位置、缩放和旋转方向。
@@ -268,7 +290,6 @@ def load_blend_file_backgournd(filepath):
         if obj is not None:
             bpy.context.collection.objects.link(obj)
 
-
 def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png", samples=500, use_denoising=True, use_transparent_bg=False):
     """设置渲染参数，包括分辨率、格式、输出路径和高质量渲染设置。"""
     # 设置分辨率和输出路径
@@ -278,22 +299,24 @@ def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_pat
     bpy.context.scene.render.filepath = output_path
     bpy.context.scene.render.image_settings.file_format = file_format
     bpy.context.scene.cycles.device = 'GPU'
-    
-    # 设置透明背景（如果需要）
-    #bpy.context.scene.render.film_transparent = use_transparent_bg
-    
-    # 设置光线跟踪反弹次数
-    # bpy.context.scene.cycles.max_bounces = 6
-    # bpy.context.scene.cycles.diffuse_bounces = 2
-    # bpy.context.scene.cycles.glossy_bounces = 2
-    # bpy.context.scene.cycles.transmission_bounces = 6
-    # bpy.context.scene.cycles.volume_bounces = 2
-    
-    # 设置光路径采样（可选）
-    #bpy.context.scene.cycles.use_adaptive_sampling = True
-    #bpy.context.scene.cycles.adaptive_threshold = 0.01
-    
+    # bpy.context.scene.render.engine = 'CYCLES'
 
+    # # 设置设备为 GPU
+    # preferences = bpy.context.preferences.addons['cycles'].preferences
+    # preferences.compute_device_type = 'CUDA'  # 可选：'OPTIX', 'HIP', 'METAL'
+
+    # # 启用所有可用的 GPU 设备
+    # for device in preferences.get_devices():
+    #     if device.type == 'CUDA' or device.type == 'OPTIX' or device.type == 'METAL':
+    #         device.use = True
+    #         print(f"启用设备：{device.name}")
+    #     else:
+    #         print(f"跳过设备：{device.name}")
+
+    # # 设置场景使用 GPU
+    # bpy.context.scene.cycles.device = 'GPU'
+    # print("GPU 渲染已启用。")
+    
 def calculate_rotated_magnetic_moment(rotation_axis, rotation_angle, magnitude=1.0):
     """
     根据旋转轴和旋转角度计算旋转后的磁矩向量。
@@ -481,8 +504,7 @@ def point_in_rotated_rectangle(x, y, rect_width, rect_height, angle):
     # 检查点是否在对齐的矩形内
     half_width, half_height = rect_width / 2, rect_height / 2
     return (-half_width <= rotated_x <= half_width) and (-half_height <= rotated_y <= half_height)
-  
-  
+   
 def check_objects_intersection(object_name1, object_name2):
     """
     检查两个对象是否相交（是否穿模）。
@@ -581,8 +603,8 @@ def main(
       background = "./database/background_magnet_white.blend"
       load_blend_file_backgournd(background)
 
-    blender = "/home/ulab/dxl952/Causal_project/github/Causality-informed-Generation/code1/database/magnet/magnet.blend"
-    needle = "/home/ulab/dxl952/Causal_project/github/Causality-informed-Generation/code1/database/compass/compass_b.blend"
+    blender = "./database/magnet/magnet.blend"
+    needle = "./database/compass/compass_b.blend"
     random_rotation_angle = random.uniform(0, 360)
     
     # print(f"rotation_angle of magnet: {random_rotation_angle:.2f}")
@@ -611,7 +633,10 @@ def main(
     )
    
     rotation_angle = result.angle_degrees
-    load_blend_file(filepath = needle, location = needle_location, scale=(1, 1, 1),rotation_angle=result.angle_degrees)
+    noise_rotation_angle = result.noised_angle_degrees
+    # print(f"rotation_angle of needle: {rotation_angle:.2f}")
+    load_blend_file(filepath = needle, location = needle_location, 
+                    scale=(1, 1, 1), rotation_angle = noise_rotation_angle)
 
     bpy.ops.object.camera_add()
     camera = bpy.context.object
@@ -639,10 +664,12 @@ def main(
       with open(csv_file, mode="a", newline="") as file:
           writer = csv.writer(file)
           if without_2D and overlook_only:
-            writer.writerow([iter, render_3D_over_output_path, -random_rotation_angle + 360, needle_location[0], needle_location[1], result.angle_degrees])
+            writer.writerow([iter, render_3D_over_output_path, -random_rotation_angle + 360, needle_location[0], needle_location[1], 
+                             result.angle_degrees, result.noised_angle_degrees, result.noise])
           # elif without_2D:
           else:
-            writer.writerow([iter, render_3D_output_path, render_3D_over_output_path,twoD_output_path, -random_rotation_angle, needle_location, result.field_direction])
+            writer.writerow([iter, render_3D_output_path, render_3D_over_output_path, twoD_output_path, -random_rotation_angle, 
+                             needle_location, result.field_direction, result.noisy_field_direction, result.noise])
 
 
 def random_point_outside_rotated_inner_ellipse_within_camera(inner_axes, angle, camera_frame):
@@ -709,7 +736,7 @@ if __name__ == "__main__":
 
     # CSV 文件路径
     scene = "Magnetic"
-    csv_file = f"./database/rendered_{scene.lower()}_{resolution}_blue/magnet_scene_{resolution}.csv"
+    csv_file = f"./database/rendered_{scene.lower()}_{resolution}P/magnet_scene_{resolution}P.csv"
     
     try:
         with open(csv_file, mode="r") as file:
@@ -723,15 +750,16 @@ if __name__ == "__main__":
         
         # 如果文件不存在，写入 CSV 文件头
         if not file_exists and arguments.overlook_only:
-            writer.writerow(["iter", "3D_over", "magnet_direction(degree)", "needle_location_x", "needle_location_y", "needle_direction(degree)"])
+            writer.writerow(["iter", "3D_over", "magnet_direction(degree)", "needle_location_x", "needle_location_y", 
+                             "needle_direction(degree)", "noisy_needle_direction(degree)", "noise"])
 
         # 设置背景、场景和渲染输出路径
         background = "blank"
 
-        render_output_path = f"./database/rendered_{scene.lower()}_{resolution}_blue/"
+        render_output_path = f"./database/rendered_{scene.lower()}_{resolution}P/"
 
         # 使用起始帧数循环渲染 iteration_time 个批次
-        for i in tqdm(range(arguments.iter, arguments.iter + iteration_time), desc="Rendering"):
+        for i in range(arguments.iter, arguments.iter + iteration_time):
             main(
                 background=background,
                 scene=scene,
