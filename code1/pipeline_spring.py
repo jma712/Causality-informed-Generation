@@ -220,8 +220,14 @@ def calculate_spring_deformation(weight, spring_constant, max_deformation):
         raise ValueError("Max deformation must be a positive number.")
     
     # 计算形变量
-    deformation = weight / spring_constant  # x = F / k
-    noise = random.uniform(-0.05*deformation, 0.05*deformation)
+    spring_constant = 0.1
+    deformation = weight / spring_constant  # x = F / k 
+
+    # nosise is guassian noise
+    noise = np.random.randn() * 0.1
+    x
+    
+    
     deformation += noise
     
     # 限制形变量在最大允许范围内
@@ -378,63 +384,64 @@ def main(
 
     set_render_parameters(output_path=file_path, resolution=(resolution, resolution))
     camera_location = (random.uniform(-0, 0), random.uniform(15, 15), random.uniform(1, 1))
-    load_blend_file("./database/Spring.blend")
+    # load_blend_file("./database/Spring.blend")
     
     
     materials = ["Iron", "Wood"]
     material = random.choice(materials)
     if material == "Iron":
-      weight = random.uniform(2, 10)
+      weight = random.uniform(0.1, 1)
     elif material == "Wood":
-      weight = random.uniform(0.5, 10)
+      weight = random.uniform(0.1, 1)
     x,y,z, cube = create_cube_based_on_weight(weight=weight, density=material_density[material])
 
     spring_constant = 10  # 弹簧劲度系数 (N/m)
 
-    high = 1.3
+    high = 13
     max_deformation = high * 0.83
     deformation, noise = calculate_spring_deformation(weight, spring_constant, max_deformation)
     
-    spring = bpy.data.objects.get("spring")
-    scale_factor = (high - deformation) /  high
-    resize_object_on_z_axis("spring", scale_factor)
-    move_object_to_location("Weight_Cube", (0, 0, high*scale_factor+z/2))
+    # spring = bpy.data.objects.get("spring")
+    # scale_factor = (high - deformation) /  high
+    # resize_object_on_z_axis("spring", scale_factor)
+    # move_object_to_location("Weight_Cube", (0, 0, high*scale_factor+z/2))
     
 
-    if material == "Iron":
-      apply_pbr_material(
-          obj=cube, 
-          texture_dir="./database/material/Metal055A_1K-JPG/",  # 替换为实际路径
-          texture_files={
-              'Base Color': 'Metal055A_1K-JPG_Color.jpg',
-              'Metalness': 'Metal055A_1K-JPG_Metalness.jpg',
-              'Roughness': 'Metal055A_1K-JPG_Roughness.jpg',
-              'Normal': 'Metal055A_1K-JPG_NormalGL.jpg'
-          }
-      )
-    elif material == "Wood":
-      apply_pbr_material(
-          obj=cube, 
-          texture_dir="./database/material/Wood066_1K-JPG/",  # 替换为实际路径
-          texture_files={
-              'Base Color': 'Wood066_1K-JPG_Color.jpg',
-              'Roughness': 'Wood066_1K-JPG_Roughness.jpg',
-              'Normal': 'Wood066_1K-JPG_NormalGL.jpg'
-          }
-      )
+    # if material == "Iron":
+    #   apply_pbr_material(
+    #       obj=cube, 
+    #       texture_dir="./database/material/Metal055A_1K-JPG/",  # 替换为实际路径
+    #       texture_files={
+    #           'Base Color': 'Metal055A_1K-JPG_Color.jpg',
+    #           'Metalness': 'Metal055A_1K-JPG_Metalness.jpg',
+    #           'Roughness': 'Metal055A_1K-JPG_Roughness.jpg',
+    #           'Normal': 'Metal055A_1K-JPG_NormalGL.jpg'
+    #       }
+    #   )
+    # elif material == "Wood":
+    #   apply_pbr_material(
+    #       obj=cube, 
+    #       texture_dir="./database/material/Wood066_1K-JPG/",  # 替换为实际路径
+    #       texture_files={
+    #           'Base Color': 'Wood066_1K-JPG_Color.jpg',
+    #           'Roughness': 'Wood066_1K-JPG_Roughness.jpg',
+    #           'Normal': 'Wood066_1K-JPG_NormalGL.jpg'
+    #       }
+    #   )
     
 
-    target_location = (0, 0, 1.6)
-    setting_camera(camera_location, target_location)
+    # target_location = (0, 0, 1.6)
+    # setting_camera(camera_location, target_location)
 
-    render_scene()
+    # render_scene()
     # if save_path:
     #     save_blend_file("./temp.blend")
         
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iter, weight,  high, deformation, noise, max_deformation, spring_constant, f"{material}'s density:{material_density[material]}", (x,y,z), file_path])
+        # writer.writerow([iter, weight,  high, deformation, noise, max_deformation, spring_constant, f"{material}'s density:{material_density[material]}", (x,y,z), file_path])
+        writer.writerow([iter, weight,  high, deformation, noise, max_deformation, spring_constant, material, (x,y,z)])
 
     return
 
@@ -452,16 +459,17 @@ if __name__ == "__main__":
     resolution =  arguments.resolution
 
     # CSV 文件路径
-    csv_file = f"./database/rendered_spring_{resolution}P/spring_scene_{resolution}P.csv"
+    csv_file = f"./database/rendered_spring_{resolution}P/spring_scene_{resolution}P_new.csv"
     if arguments.circle:
-      csv_file = f"./database/rendered_spring_circle_{resolution}P/spring_scene_circle_{resolution}P.csv"
+      csv_file = f"./database/rendered_spring_circle_{resolution}P/spring_scene_circle_{resolution}P_new.csv"
 
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["iter", "weight", "spring high", "deformation", "noise", "max_deformation", "spring_constant", "matrial", "cube size", "img_path"])
+            # writer.writerow(["iter", "weight", "spring high", "deformation", "noise", "max_deformation", "spring_constant", "matrial", "cube size", "img_path"])
+            writer.writerow(["iter", "weight", "spring high", "deformation", "noise", "max_deformation", "spring_constant", "matrial", "cube size",])
 
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:

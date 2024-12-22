@@ -41,10 +41,6 @@ class NodeInfo:
     field_direction: np.ndarray  # 磁场方向（单位向量）
     angle: float  # 与x轴的角度（弧度）
     angle_degrees: float  # 与x轴的角度（角度）
-    noised_field_direction: np.ndarray  # 加噪后的磁场方向（单位向量）
-    noised_angle: float  # 加噪后的角度（弧度）
-    noised_angle_degrees: float  # 加噪后的角度（角度）
-    noise: float  # 噪声大小
 
 def calculate_node_magnetic_info(
     magnet_center: Tuple[float, float],  # 磁铁中心位置
@@ -117,24 +113,21 @@ def calculate_node_magnetic_info(
             angle = np.arctan2(field_direction[1], field_direction[0])
             
             
-            noise = np.random.normal(0, 0.1 * np.abs(field), size=field.shape)
-            # 在原始磁场上加噪声
-            noisy_field = field + noise
             # 重新计算加噪后的方向
-            noisy_magnitude = np.linalg.norm(noisy_field)
-            noisy_field_direction = noisy_field / noisy_magnitude
-            noisy_angle = np.arctan2(noisy_field_direction[1], noisy_field_direction[0])
+            magnitude = np.linalg.norm(field)
+            field_direction = field / magnitude
+            angle = np.arctan2(field_direction[1], field_direction[0])
 
 
     result = NodeInfo(
         position=node,
         field_direction=field_direction,
         angle=angle,
-        angle_degrees=np.degrees(angle) % 360,
-        noised_field_direction = noisy_field_direction,
-        noised_angle = noisy_angle,
-        noised_angle_degrees = np.degrees(noisy_angle) % 360,
-        noise = noise
+        angle_degrees=np.degrees(angle) % 360  + np.random.randn() * 3.6,
+        # noised_field_direction = noisy_field_direction,
+        # noised_angle = noisy_angle,
+        # noised_angle_degrees = np.degrees(noisy_angle) % 360,
+        # noise = noise
     )
     
     # 可视化部分
@@ -633,10 +626,9 @@ def main(
     )
    
     rotation_angle = result.angle_degrees
-    noise_rotation_angle = result.noised_angle_degrees
     # print(f"rotation_angle of needle: {rotation_angle:.2f}")
-    load_blend_file(filepath = needle, location = needle_location, 
-                    scale=(1, 1, 1), rotation_angle = noise_rotation_angle)
+    # load_blend_file(filepath = needle, location = needle_location, 
+    #                 scale=(1, 1, 1), rotation_angle = rotation_angle)
 
     bpy.ops.object.camera_add()
     camera = bpy.context.object
@@ -653,19 +645,21 @@ def main(
     fit_camera_to_objects_with_random_position(camera, [ "Object_2"], over=True) 
     object_name = "Object_2"
     needle_name = "needle"
-    set_render_parameters(output_path=render_3D_over_output_path, resolution=(resolution, resolution))
+    # set_render_parameters(output_path=render_3D_over_output_path, resolution=(resolution, resolution))
     if check_objects_intersection(object_name, needle_name):
       pass
     else:
       # save_blend_file("./debug.blend")
-      render_scene()
+      # render_scene()
       
       # 将结果写入 CSV 文件
       with open(csv_file, mode="a", newline="") as file:
           writer = csv.writer(file)
           if without_2D and overlook_only:
+            # writer.writerow([iter, render_3D_over_output_path, -random_rotation_angle + 360, needle_location[0], needle_location[1], 
+            #                  result.angle_degrees, result.noised_angle_degrees, result.noise])
             writer.writerow([iter, render_3D_over_output_path, -random_rotation_angle + 360, needle_location[0], needle_location[1], 
-                             result.angle_degrees, result.noised_angle_degrees, result.noise])
+                             result.angle_degrees])
           # elif without_2D:
           else:
             writer.writerow([iter, render_3D_output_path, render_3D_over_output_path, twoD_output_path, -random_rotation_angle, 
@@ -736,7 +730,7 @@ if __name__ == "__main__":
 
     # CSV 文件路径
     scene = "Magnetic"
-    csv_file = f"./database/rendered_{scene.lower()}_{resolution}P/magnet_scene_{resolution}P.csv"
+    csv_file = f"./database/rendered_{scene.lower()}_{resolution}P/magnet_scene_{resolution}P_new.csv"
     
     try:
         with open(csv_file, mode="r") as file:
@@ -750,8 +744,11 @@ if __name__ == "__main__":
         
         # 如果文件不存在，写入 CSV 文件头
         if not file_exists and arguments.overlook_only:
+            # writer.writerow(["iter", "3D_over", "magnet_direction(degree)", "needle_location_x", "needle_location_y", 
+            #                  "needle_direction(degree)", "noisy_needle_direction(degree)", "noise"])
             writer.writerow(["iter", "3D_over", "magnet_direction(degree)", "needle_location_x", "needle_location_y", 
-                             "needle_direction(degree)", "noisy_needle_direction(degree)", "noise"])
+                             "needle_direction(degree)"])
+            
 
         # 设置背景、场景和渲染输出路径
         background = "blank"

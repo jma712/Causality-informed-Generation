@@ -9,8 +9,7 @@ import random
 from mathutils import Vector
 import os
 import csv
-sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")  # 请根据实际路径确认
-from tqdm import tqdm
+# causal graph: https://cdn.jsdelivr.net/gh/DishengL/ResearchPics/reflection.png
 
 def setting_camera(location, target):
     """
@@ -70,22 +69,6 @@ def create_laser_beam(laser_length=10, name = "LaserBeam", color = (1.0, 0, 0, 1
     # 将发光材质赋予圆柱体
     laser_beam.data.materials.append(laser_material)
 
-    # 添加光源来照亮场景
-    # bpy.ops.object.light_add(type='POINT', location=(5, -5, 5))
-    # light = bpy.context.object
-    # light.name = "SceneLight"
-    # light.data.energy = 50  # 设置光源亮度
-    # 添加光源来照亮场景
-    # bpy.ops.object.light_add(type='POINT', location=(0, 0, 5))
-    # light = bpy.context.object
-    # light.name = "SceneLight"
-    # light.data.energy = 100  # 设置光源亮度
-
-    # 禁用光源的阴影
-    # light.data.use_shadow = False  # 设置光源不产生阴影
-
-    # bpy.context.scene.render.resolution_x = 1920
-    # bpy.context.scene.render.resolution_y = 1080
 
     return laser_beam
 
@@ -130,7 +113,6 @@ def place_and_align_cylinder(cylinder, target_vector, length=2):
 
     # 将圆柱体的底部对齐到 (0, 0, 0)
     cylinder.location = target_vector * (length / 2)
-
 
 def clear_scene():
     """删除当前场景中的所有对象。"""
@@ -188,8 +170,8 @@ def set_render_parameters(resolution=(1920, 1080), file_format='PNG',
           
       bpy.context.scene.render.engine = 'CYCLES'
       bpy.context.scene.render.resolution_percentage = 60
-      bpy.context.scene.render.resolution_x = int(1920/4)
-      bpy.context.scene.render.resolution_y = int(1080/4)
+      bpy.context.scene.render.resolution_x = resolution[0]
+      bpy.context.scene.render.resolution_y = resolution[0]
       # 设置渲染设备为 GPU
       bpy.context.preferences.addons['cycles'].preferences.compute_device_type = 'CUDA'  # 使用 CUDA，如果是 RTX 卡可以改为 'OPTIX'
       bpy.context.scene.cycles.device = 'GPU'
@@ -198,9 +180,6 @@ def set_render_parameters(resolution=(1920, 1080), file_format='PNG',
       for device in bpy.context.preferences.addons['cycles'].preferences.devices:
           device.use = True
       print("当前渲染设备:", bpy.context.scene.cycles.device)
-            
-      
-      
 
 def calculate_reflection_vector(incident_point):
     """
@@ -226,7 +205,12 @@ def calculate_reflection_vector(incident_point):
     # 计算反射方向向量
     reflection_vector = incident_vector - 2 * np.dot(incident_vector, normal_vector) * normal_vector
     
-    return reflection_vector
+    # noise is 10% of the reflection vector
+    noise = random.uniform(-0.05, 0.05) * reflection_vector
+    
+    reflection_vector_with_noise = reflection_vector + noise
+    
+    return incident_vector, reflection_vector_with_noise,noise 
   
 def draw_decreasing_probability_sample_once(low=0, high=10, scale=1.5):
     """
@@ -269,11 +253,6 @@ def render_scene():
     bpy.ops.render.render(write_still=True)
     print(f"渲染完成，图像已保存到：{bpy.context.scene.render.filepath}")
 
-# def render_scene():
-#     """执行渲染并保存图像。"""
-#     bpy.ops.render.render(write_still=True)
-#     print(f"渲染完成，图像已保存到：{bpy.context.scene.render.filepath}")
-
 def save_blend_file(filepath):
     """保存当前场景为指定的 .blend 文件，直接覆盖原有文件。"""
     if os.path.exists(filepath):
@@ -282,12 +261,11 @@ def save_blend_file(filepath):
     bpy.ops.wm.save_as_mainfile(filepath=filepath)
     print(f"修改后的场景已保存到：{filepath}")
   
-  
 def main(
     background = 'blank',
     scene = 'scene',
     render_output_path = "../database/rendered_image.png",
-    save_path = "../database/modified_scene.blend",
+    save_path = "", # "../database/modified_scene.blend",
     csv_file = None,
     iteration = 0,
     circle = False,
@@ -304,13 +282,13 @@ def main(
 
     set_render_parameters(output_path=file_name, circle = circle, resolution=(resolution, resolution))
     incident_point = generate_random_coordinates()
-    reflection_point = calculate_reflection_vector(incident_point)
+    incident_vector, reflection_vector, noise = calculate_reflection_vector(incident_point)
     random_color = (random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1), 1)  # 随机 RGB，A 设置为 1
     incident_beam = create_laser_beam(name = "IncidentBeam", color = random_color)
     reflect_beam = create_laser_beam(name = "ReflectBeam", color = random_color)
-    place_and_align_cylinder(incident_beam, incident_point)
-    place_and_align_cylinder(reflect_beam, reflection_point)
-    camera_location = (random.uniform(-0, 0), random.uniform(10, 10), random.uniform(2, 2))
+    place_and_align_cylinder(incident_beam, incident_vector)
+    place_and_align_cylinder(reflect_beam, reflection_vector)
+    camera_location = (random.uniform(-0, 0), random.uniform(8, 8), random.uniform(2, 2))
 
     target_location = (0, 0, 1)
     setting_camera(camera_location, target_location)
@@ -318,11 +296,10 @@ def main(
     render_scene()
     if save_path:
         save_blend_file("./temp.blend")
-        
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iteration, incident_point,  reflection_point, camera_location,
+        writer.writerow([iteration, incident_vector.tolist(),  reflection_vector.tolist(), noise.tolist(), list(camera_location),
                          random_color, file_name])
 
 
@@ -340,9 +317,9 @@ if __name__ == "__main__":
     iteration_time = arguments.size  # 每次渲染的批次数量
 
     # CSV 文件路径
-    csv_file = f"./database/rendered_reflection_{resolution}/reflection_scene_{resolution}P.csv"
+    csv_file = f"./database/rendered_reflection_{resolution}P/reflection_scene_{resolution}P.csv"
     if arguments.circle:
-      csv_file = f"./database/rendered_reflection_{resolution}/refleciton_scene_circle_{resolution}P.csv"
+      csv_file = f"./database/rendered_reflection_{resolution}P/refleciton_scene_circle_{resolution}P.csv"
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
@@ -350,7 +327,7 @@ if __name__ == "__main__":
         # 文件不存在，创建并写入表头
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["iter", "incident_point", "reflection_point", "camera_location", "color", "images"])
+            writer.writerow(["iter", "incident_vector", "reflection_vector_with_noise", "noise", "camera_location", "color", "images"])
     else:
         init = False
 
@@ -361,12 +338,12 @@ if __name__ == "__main__":
         # 设置背景、场景和渲染输出路径
         background = "./database/reflection_space.blend"
         scene = "Reflection"
-        render_output_path = f"./database/rendered_reflection_{resolution}/"
-        if arguments.circle:
-          render_output_path = f'./database/rendered_reflection_circle_{resolution}/'
+        render_output_path = f"./database/rendered_reflection_{resolution}P/"
+        # if arguments.circle:
+        #   render_output_path = f'./database/rendered_reflection_circle_{resolution}P/'
 
         # 使用起始帧数循环渲染 iteration_time 个批次
-        for i in tqdm(range(arguments.iter, arguments.iter + iteration_time), desc="Rendering"):
+        for i in (range(arguments.iter, arguments.iter + iteration_time)):
             main(
                 background=background,
                 scene=scene,

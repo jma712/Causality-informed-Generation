@@ -11,12 +11,13 @@ import csv
 from datetime import datetime
 import csv
 
+# ![](https://cdn.jsdelivr.net/gh/DishengL/ResearchPics/3hypothetical.png)
 
-sys.path.append(os.path.abspath('/home/ulab/dxl952/Causal_project/github/Causality-informed-Generation/code1'))
+sys.path.append(os.path.abspath('/home/lds/github/Causality-informed-Generation/code1'))
 from blender_render import clear_scene, disable_shadows_for_render, load_blend_file_backgournd, set_render_parameters, \
 move_object_to_location, render_scene, setting_camera, save_blend_file,create_rectangular_prism, rotate_object_around_edge, load_blend_file, rotate_object_y_axis_by_name
-sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")  # 请根据实际路径确认
-from tqdm import tqdm
+sys.path.append("/home/lds/miniconda3/envs/joe/lib/python3.12/site-packages/")
+import numpy as np
 
 def main(
     background = 'blank',
@@ -55,13 +56,20 @@ def main(
     
     # randomly generate r from 0.5 to 15
     r = random.uniform(0.1, 0.9)
-    # v is the volume of the sphere based on r
+    scale = 0.01
     ball_v = 4/3 * math.pi * r**3
-    cylinder_v = 2 * ball_v
+    max_ball_v = 4/3 * math.pi * 0.9**3
+    noise_1 = np.random.randn() * scale * max_ball_v
+    cylinder_v = 2 * ball_v + noise_1
+    max_cylinder_v = 2 * max_ball_v + scale * max_ball_v
     # noise e is the height of the rectangular prism above the ground
+
+    noise_2 = scale * (max_cylinder_v * 5  + max_ball_v * 3) 
+    
     e = random.uniform(0, 0.15) if with_noise else 0  # noise e is the height of the rectangular prism above the ground
+    e = 0
     #  tilt angle of the rectangular prism
-    angle = 3*ball_v + 5*cylinder_v + 0.5*e  
+    angle = 3*ball_v + 5*cylinder_v + 0.5*noise_2  
     
     # blender generate ball based on r
     bpy.ops.mesh.primitive_uv_sphere_add(radius=r, location=(0, 0, r))
@@ -83,7 +91,7 @@ def main(
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iteration, ball_v, cylinder_v, e, angle, file_name ])
+        writer.writerow([iteration, ball_v, cylinder_v, noise_1, angle, noise_2, file_name ])
     
   
 
@@ -100,22 +108,23 @@ if __name__ == "__main__":
     iteration_time = arguments.size  # 每次渲染的批次数量
 
     # CSV 文件路径
-    csv_file = f"./database/rendered_h3_{resolution}/ref_scene_{resolution}P.csv"
+    csv_file = f"./database/rendered_h3_{resolution}P/ref_scene_{resolution}P.csv"
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["iter", 'volume_ball', 'volume_cylinder', 'height_prism_above', 'tilt_angle' , "img_path"])
+            writer.writerow(["iter", 'volume_ball', 'volume_cylinder(with noise)', "noise_in_cylinder",
+                             'tilt_angle(with noise)' ,"noise_in_angle", "img_path"])
 
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
         scene = "H3"
-        render_output_path = f"./database/rendered_h3_{resolution}/"
+        render_output_path = f"./database/rendered_h3_{resolution}P/"
 
         # 使用起始帧数循环渲染 iteration_time 个批次
-        for i in tqdm(range(arguments.iter, arguments.iter + iteration_time), desc="Rendering"):
+        for i in (range(arguments.iter, arguments.iter + iteration_time)):
             main(
                 scene=scene,
                 render_output_path=render_output_path,

@@ -4,7 +4,7 @@ import sys
 import subprocess
 res = subprocess.run(["which", "python"],capture_output=True, text=True).stdout
 sys.path.append(res.split("bin")[0] + "lib/python3.11/site-packages/")
-
+import numpy as np
 import argparse
 import sys
 import random
@@ -303,6 +303,10 @@ def calculate(length = 5) -> dict:
   random_offset = random.uniform(0, 1.5)
   random_left_weight = random.uniform(10, 60)
   random_right_weight = random.uniform(10, 60)
+  left = random.uniform(10, 60)
+  right = random.uniform(10, 60)
+  res = left - right
+  res = res + np.random.randn() * 5
   mass = 5
   left_arm = length/2 - random_offset
   right_arm = length/2 + random_offset
@@ -310,7 +314,7 @@ def calculate(length = 5) -> dict:
   right_mass = mass * (right_arm / length)
   left = random_left_weight * left_arm  + left_mass * left_arm/2
   right = random_right_weight * right_arm + right_mass * right_arm/2
-  continuous_result = left - right + random.uniform(abs(left - right)-0.1, abs(left - right)*0.1)
+  continuous_result = left - right + random.uniform(abs(left - right)*0.1, abs(left - right)*0.1)
   
   if left > right:
     discrete_result = "left"
@@ -336,7 +340,10 @@ def calculate(length = 5) -> dict:
           "weight_value_r": random_right_weight,
           "discrete_result": discrete_result,
           "continuous_result(left-right+Noise(abs(l-r)*.1))": continuous_result,
-          "result": result
+          "result": result,
+          "new_left": left,
+          "new_right": right,
+          "new_res": res,
       }
 
 
@@ -346,53 +353,53 @@ def add_seesaw(param = None, camera_location = (0, -7, 2), camera_rotation = (1.
                          camera_focal_length = 25):
     param = calculate()    # get all of parameters for create a seesaw scene
 
-    pivot = create_pivot(radius=param['pivot_r'],
-                         location=(0, 0, 1*param['pivot_r']))
-    lever = create_lever(
-      length=param['lever_length'], width=param["lever_width"], height=param['lever_height'],
-      location=(param['lever_x_offset'], 0, 2* param['pivot_r'] + 0.5* param['lever_height']))
+    # pivot = create_pivot(radius=param['pivot_r'],
+    #                      location=(0, 0, 1*param['pivot_r']))
+    # lever = create_lever(
+    #   length=param['lever_length'], width=param["lever_width"], height=param['lever_height'],
+    #   location=(param['lever_x_offset'], 0, 2* param['pivot_r'] + 0.5* param['lever_height']))
     # 设置光标位置为 (1, 1, 1)
-    bpy.context.scene.cursor.location = (0, 0, 2* param['pivot_r']+ 0.5* param['lever_height'])
+    # bpy.context.scene.cursor.location = (0, 0, 2* param['pivot_r']+ 0.5* param['lever_height'])
 
     # 选择对象
-    bpy.context.view_layer.objects.active = lever
-    lever.select_set(True)
+    # bpy.context.view_layer.objects.active = lever
+    # lever.select_set(True)
 
     # 将对象的原点设置为光标位置
-    bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
+    # bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
 
     # 将杠杆设置为支点的子对象
-    bpy.ops.object.select_all(action='DESELECT')
-    pivot.select_set(True)
-    lever.select_set(True)
-    bpy.context.view_layer.objects.active = pivot
-    bpy.ops.object.parent_set(type='OBJECT')
+    # bpy.ops.object.select_all(action='DESELECT')
+    # pivot.select_set(True)
+    # lever.select_set(True)
+    # bpy.context.view_layer.objects.active = pivot
+    # bpy.ops.object.parent_set(type='OBJECT')
 
     # 在杠杆的两端创建砝码
-    weight_left, flag_l = create_weight(end_location = [-param['lever_length']/2 + param['lever_x_offset'],0, 2*param['pivot_r'] + param['lever_height']],
-                                weight_value = param['weight_value_l'])
-    weight_right, flag_r = create_weight(end_location = [param['lever_length']/2 + param['lever_x_offset'], 0, 2*param['pivot_r'] + param['lever_height']],
-                                 weight_value = param['weight_value_r'])
-    if flag_l == -1 and flag_r == -1:
-        print("both small")
-        return -1
+    # weight_left, flag_l = create_weight(end_location = [-param['lever_length']/2 + param['lever_x_offset'],0, 2*param['pivot_r'] + param['lever_height']],
+    #                             weight_value = param['weight_value_l'])
+    # weight_right, flag_r = create_weight(end_location = [param['lever_length']/2 + param['lever_x_offset'], 0, 2*param['pivot_r'] + param['lever_height']],
+    #                              weight_value = param['weight_value_r'])
+    # if flag_l == -1 and flag_r == -1:
+    #     print("both small")
+    #     return -1
 
     # 将砝码设置为杠杆的子对象
-    bpy.ops.object.select_all(action='DESELECT')
-    lever.select_set(True)
-    weight_left.select_set(True)
-    weight_right.select_set(True)
-    bpy.context.view_layer.objects.active = lever
-    bpy.ops.object.parent_set(type='OBJECT')
-    height = 2 * param["pivot_r"]
-    angle_radians = get_rotation(height, param['lever_length'], param['lever_x_offset'], param['result'])
-    if angle_radians == 0:
-      logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+    # bpy.ops.object.select_all(action='DESELECT')
+    # lever.select_set(True)
+    # weight_left.select_set(True)
+    # weight_right.select_set(True)
+    # bpy.context.view_layer.objects.active = lever
+    # bpy.ops.object.parent_set(type='OBJECT')
+    # height = 2 * param["pivot_r"]
+    # angle_radians = get_rotation(height, param['lever_length'], param['lever_x_offset'], param['result'])
+    # if angle_radians == 0:
+    #   logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-      logging.warning(f"param: {param}")
-      return -1
-    lever.rotation_euler[0] = 0
-    lever.rotation_euler[1] = angle_radians
+    #   logging.warning(f"param: {param}")
+    #   return -1
+    # lever.rotation_euler[0] = 0
+    # lever.rotation_euler[1] = angle_radians
     return param
   
 
@@ -404,28 +411,31 @@ def main(
     csv_file = None,
     resolution = 128
   ):
-    clear_scene()
+    # clear_scene()
     current_time = datetime.now()
     file_name = current_time.strftime("%Y%m%d_%H%M%S")  # 格式化为 YYYYMMDD_HHMMSS
     file_name = os.path.join(render_output_path, file_name+".png")
     background = "./database/background_magnet.blend"
-    load_blend_file(background)
+    # load_blend_file(background)
     if scene.lower() == "seesaw":
         param = add_seesaw()
+        pass
     else:
         print(f"未识别的场景类型: {scene}，跳过特定元素添加。")
+    # print(param)
 
-    set_render_parameters(output_path=file_name, resolution=(resolution, resolution))
+    # set_render_parameters(output_path=file_name, resolution=(resolution, resolution))
 
-    bpy.ops.object.camera_add()
-    camera = bpy.context.object
-    fit_camera_to_objects_with_random_position(camera, ["Lever", "Weight", "Weight.001", "Pivot"], fixed=True) 
-    render_scene()
+    # bpy.ops.object.camera_add()
+    # camera = bpy.context.object
+    # fit_camera_to_objects_with_random_position(camera, ["Lever", "Weight", "Weight.001", "Pivot"], fixed=True) 
+    # render_scene()
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iter, param["weight_value_l"],  param["weight_value_r"], param["lever_length"]-param["lever_x_offset"],
-                         param["lever_length"] + param["lever_x_offset"], param['result'], param["discrete_result"], param['continuous_result(left-right+Noise(abs(l-r)*.1))'], file_name])
+        # writer.writerow([iter, param["weight_value_l"],  param["weight_value_r"], param["lever_length"]-param["lever_x_offset"],
+        #                  param["lever_length"] + param["lever_x_offset"], param['result'], param["discrete_result"], param['continuous_result(left-right+Noise(abs(l-r)*.1))'], file_name])
+        writer.writerow([iter, param["new_left"],  param["new_right"], param["new_res"]])
 
 
 def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2, over = False, fixed = False):
@@ -504,6 +514,7 @@ def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2,
     return bbox_center + V
 
 if __name__ == "__main__":
+    # print(">>>>>>>>")
     parser = argparse.ArgumentParser(description="Blender Rendering Script")
     parser.add_argument("--iter", type=int, help="initial number")
     parser.add_argument("--resoluation", type=int, default=128, help="resolution of the image")
@@ -514,7 +525,7 @@ if __name__ == "__main__":
 
     # CSV 文件路径
     resolution = arguments.resoluation
-    csv_file = f"./database/rendered_seesaw_{resolution}P/seesaw_scene_{resolution}P.csv"
+    csv_file = f"./database/rendered_seesaw_{resolution}P/seesaw_scene_{resolution}P_new.csv"
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
@@ -524,7 +535,8 @@ if __name__ == "__main__":
         print(os.getcwd())
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["iter", "left_weight", "right_weight", "left_arm", "right_arm", 'result(up)', "result_without_noise", "continuous_result_with_noise", "images"])
+            # writer.writerow(["iter", "left_weight", "right_weight", "left_arm", "right_arm", 'result(up)', "result_without_noise", "continuous_result_with_noise", "images"])
+            writer.writerow(["iter", "left", "right", "res"])
     else:
         init = False
 
