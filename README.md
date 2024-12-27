@@ -7,7 +7,7 @@
 - Real-world style
 
 ### Size and graph structure
-
+- Linear Relationship
 1. Hypothetical example with 3 variables:
 
     Variable a = the volume of the ball;  
@@ -61,7 +61,7 @@
     In the first hypothetical example, we can let users to make interventioans do(a = A) and do(b = B).  
     In the second hypothetical example, we can let users to make interventioans do(a = A), do(b = B) and do(c = C).  
     In the third hypothetical example, we can let users to make interventioans do(a = A), do(b = B), do(c = C) and do(d = D).
-  
+- Nonlinear Relationship
 ## Step 2 SOTA Baselines
 
 ### Methods
