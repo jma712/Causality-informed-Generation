@@ -10,7 +10,7 @@
 
 1. Hypothetical example with 3 variables:
 
-    Variable a = the volume of a ball;  
+    Variable a = the volume of the ball;  
     Variable b = the volume of the cylinder;  
     Variable c = the tilt angle of the rectangular prism.
 
@@ -19,8 +19,8 @@
 
 2. Hypothetical example with 4 variables:  
 
-    Variable a = the volume of a ball;  
-    Variable b = the height of a cylinder;  
+    Variable a = the volume of the ball;  
+    Variable b = the height of the cylinder;  
     Variable c = the distance between the ball and the cylinder;  
     Variable d = the cylinder’s height above the ground.  
 
@@ -29,8 +29,8 @@
 
 3. Hypothetical example with 5 variables:  
 
-    Variable a = the volume of a ball;  
-    Variable b = the height of a cylinder;  
+    Variable a = the volume of the ball;  
+    Variable b = the height of the cylinder;  
     Variable c = the distance between the ball and the cylinder;  
     Variable d = the cylinder’s height above the ground;  
     Variable e = the tilt angle of the cylinder.
