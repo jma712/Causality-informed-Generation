@@ -225,7 +225,6 @@ def calculate_spring_deformation(weight, spring_constant, max_deformation):
 
     # nosise is guassian noise
     noise = np.random.randn() * 0.1
-    x
     
     
     deformation += noise

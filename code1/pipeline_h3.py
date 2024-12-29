@@ -60,11 +60,13 @@ def main(
     ball_v = 4/3 * math.pi * r**3
     max_ball_v = 4/3 * math.pi * 0.9**3
     noise_1 = np.random.randn() * scale * max_ball_v
+    noise_1 *= 2
     cylinder_v = 2 * ball_v + noise_1
     max_cylinder_v = 2 * max_ball_v + scale * max_ball_v
     # noise e is the height of the rectangular prism above the ground
 
-    noise_2 = scale * (max_cylinder_v * 5  + max_ball_v * 3) 
+    noise_2 = np.random.randn() * scale * (max_cylinder_v * 5  + max_ball_v * 3) 
+    noise_2 *= 2
     
     e = random.uniform(0, 0.15) if with_noise else 0  # noise e is the height of the rectangular prism above the ground
     e = 0
