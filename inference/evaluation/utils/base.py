@@ -1,0 +1,7 @@
+import openai
+import base64
+import os
+api_key="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"
+
+# 从环境变量读取 API 密钥
+openai.api_key =api_key
