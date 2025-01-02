@@ -82,7 +82,7 @@
     Where:
     
     - $f$ is the focal length.
-    - $u$ si the distance from the lens to the object.
+    - $u$ is the distance from the lens to the object.
     - $v$ is the distance from the lens to the image.
     - m is the manification.
     - "-" means the image is inverted.
