@@ -160,6 +160,56 @@
 - **Linear / Nonlinear**:
 
     - This is a nonlinear model.
+    - 
+### 6. Pendulum and Light
+![Pendulum](./pendulum.png)
+
+- **Size**: 5 variables
+
+    - A: Light position.
+    - B: Pendulum angle.
+    - C: Pendulum length.
+    - D: Shadow position.
+    - E: Shadow length.
+
+- **Formula**: 
+
+$$
+x_{shadow\_left} = -\frac{y_lx_p + y_ll\sin\theta + x_ll\cos\theta - y_px_l}{y_p - l\cos\theta - y_l}
+$$
+
+$$
+x_{shadow\_right} = -\frac{y_lx_p - y_px_l}{y_p - y_l}
+$$
+
+$$
+Shadow\_position = \frac{x_{shadow\_left} + x_{shadow\_right}}{2}
+$$
+
+$$
+Shadow\_length = x_{shadow\_right} - x_{shadow\_left}
+$$
+
+Where
+
+- $x_l$ is A.
+- $\theta$ is B.
+- $l$ is C.
+- $Shadow\_position$ is D.
+- $Shadow\_length$ is E.
+
+- **Graph Structure**:
+
+    - A->D, B->D, C->D
+    - A->E, B->E, D->E
+
+- **Noise**:
+
+    We can add Gaussian noise on D and E.
+
+- **Linear / Nonlinear**:
+
+    - This is a nonlinear model.
 
 # Metrics of Tabular Data
 | Baseline |  Metrics  | Dataset:Magnet | Seesaw | Spring | 3 Hypothetical |
