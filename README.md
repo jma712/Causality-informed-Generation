@@ -210,6 +210,55 @@ Where
 - **Linear / Nonlinear**:
 
     - This is a nonlinear model.
+ 
+### 7. Water Flow
+![Water](./water.PNG)
+
+- **Size**: 5 variables
+
+    - A: Ball size.
+    - B: Diameter of the bottom.
+    - C: Water height.
+    - D: Hole height.
+    - E: Water length.
+
+- **Formula**: 
+
+$$
+h_w=h_0+\frac{4V}{\pi{d}}
+$$
+
+$$
+v_0=\sqrt{2g(h_w-h_{hole})}
+$$
+
+$$
+t=\sqrt{\frac{2h_{hole}}{g}}
+$$
+
+$$
+l=v_ot=2\sqrt{h_{hole}(h_w-h_{hole})}
+$$
+
+Where
+
+- $V$ is A.
+- $d$ is B.
+- $h_w$ is C.
+- $h_{hole}$ is D.
+- $l$ is E.
+
+- **Graph Structure**:
+
+    - A->C, B->C, C->E, D->E
+
+- **Noise**:
+
+    We can add Gaussian noise on C and E.
+
+- **Linear / Nonlinear**:
+
+    - This is a nonlinear model.
 
 # Metrics of Tabular Data
 | Baseline |  Metrics  | Dataset:Magnet | Seesaw | Spring | 3 Hypothetical |
