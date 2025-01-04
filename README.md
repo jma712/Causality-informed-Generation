@@ -22,7 +22,7 @@
     Variable a = the volume of the ball;  
     Variable b = the height of the cylinder;  
     Variable c = the distance between the ball and the cylinder;  
-    Variable d = the cylinder’s height above the ground.  
+    Variable d = the tilt angle of the cylinder.  
 
     The causal graph is:  
     <img width="100%" alt="causal_graph_2" src="2.png">
@@ -32,7 +32,7 @@
     Variable a = the volume of the ball;  
     Variable b = the height of the cylinder;  
     Variable c = the distance between the ball and the cylinder;  
-    Variable d = the cylinder’s height above the ground;  
+    Variable d = the volume of the rectangular prism;  
     Variable e = the tilt angle of the cylinder.
 
     The causal graph is:  
@@ -40,15 +40,15 @@
    
 ### Noise  
 
-    In the first hypothetical example, the noise ε is the height of the rectangular prism above the ground.  
-    In the second hypothetical example, the noise ε is the volume of the cylinder.  
-    In the third hypothetical example, the noise ε is the height of the cylinder above the ground.  
+    In the first hypothetical example, there are 2 noises ε1 and ε2.  
+    In the second hypothetical example, there are 3 noise ε1, ε2 and ε3.  
+    In the third hypothetical example, the noise ε1, ε2, ε3 and ε4..  
     
 ### Linear/nonlinear  
     Linear:  
-    In the first hypothetical example, b = 2a; c = 3a + 5b + 5ε.  
-    In the second hypothetical example, a = 3.5d; b = 3a; c = 4a + 3b + 9d + 0.7ε.  
-    In the third hypothetical example, b = 5a; c = 6a + 2b; d = 2c; e = 7.5a + 4.5c + 4d + 0.9ε.  
+    In the first hypothetical example, b = 2a + ε1; c = 3a + 5b + 5ε2.  
+    In the second hypothetical example, a = 3.5d + ε1; b = 3a + ε2; c = 4a + 3b + 9d + 0.7ε3.  
+    In the third hypothetical example, b = 5a + ε1; c = 6a + 2b + ε2; d = 2c + ε3; e = 7.5a + 4.5c + 4d + 0.9ε4.  
     
 ### Background  
 
