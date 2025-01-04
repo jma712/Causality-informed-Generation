@@ -42,7 +42,7 @@
 
     In the first hypothetical example, there are 2 noises ε1 and ε2.  
     In the second hypothetical example, there are 3 noise ε1, ε2 and ε3.  
-    In the third hypothetical example, the noise ε1, ε2, ε3 and ε4..  
+    In the third hypothetical example, the noise ε1, ε2, ε3 and ε4. 
     
 ### Linear/nonlinear  
     Linear:  
