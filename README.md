@@ -259,6 +259,55 @@ Where
 - **Linear / Nonlinear**:
 
     - This is a nonlinear model.
+ 
+### 8. Parabola
+![Parabola](./parabola.png)
+
+- **Size**: 4 variables
+
+    - A: Deformation of spring.
+    - B: Emergence angle.
+    - C: Height of highest point.
+    - D: Horizontal distance.
+
+- **Formula**: 
+
+$$
+v=\Delta{x}\sqrt{\frac{k}{m}}
+$$
+
+$$
+L=\frac{v^2sin(2\theta)}{g}=\frac{\Delta{x}^2ksin(2\theta)}{mg}
+$$
+
+$$
+H=\frac{v^2sin^2(\theta)}{2g}=\frac{\Delta{x}^2ksin^2(\theta)}{2mg}
+$$
+
+**Parabolic Equation**
+
+$$
+y(x) =x\tan(\theta)-\frac{g}{2v^2\cos^2(\theta)}x^2
+$$
+
+Where
+
+- $\Delta{x}$ is A.
+- $\theta$ is B.
+- $H$ is C.
+- $L$ is D.
+
+- **Graph Structure**:
+
+    - A->C, B->C, A->D, B->D
+
+- **Noise**:
+
+    We can add Gaussian noise on B and D.
+
+- **Linear / Nonlinear**:
+
+    - This is a nonlinear model.
 
 # Metrics of Tabular Data
 | Baseline |  Metrics  | Dataset:Magnet | Seesaw | Spring | 3 Hypothetical |
