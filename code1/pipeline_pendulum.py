@@ -8,10 +8,11 @@ import random
 import sys
 sys.path.append("/home/lds/miniconda3/envs/joe/lib/python3.9/site-packages/")
 from tqdm import tqdm
+import numpy as np
 
 
-max_left = 0
-max_right = 0
+shadow_position_limit = 0
+shadow_length_limit = 0
 
 def rotate_object(object_name, axis, degrees):
     """
@@ -24,7 +25,7 @@ def rotate_object(object_name, axis, degrees):
     # Get the object
     obj = bpy.data.objects.get(object_name)
     if obj is None:
-        print(f"Object '{object_name}' not found.")
+        # print(f"Object '{object_name}' not found.")
         return
 
     # Convert degrees to radians
@@ -51,7 +52,7 @@ def move_object(object_name, new_location):
     obj = bpy.data.objects.get(object_name)
     if obj is not None:
         obj.location = new_location
-        print(f"对象 '{object_name}' 已移动到位置 {new_location}。")
+        # print(f"对象 '{object_name}' 已移动到位置 {new_location}。")
     else:
         raise ValueError(f"未找到对象 '{object_name}'。")
         #print(f"未找到对象 '{object_name}'。")
@@ -94,6 +95,15 @@ def render(output_path):# Set output path
 
   # Set render engine (e.g., CYCLES, BLENDER_EEVEE)
   bpy.context.scene.render.engine = 'CYCLES'
+  # using only one visible GPU
+  bpy.context.preferences.addons['cycles'].preferences.get_devices()
+
+  bpy.context.preferences.addons['cycles'].preferences.compute_device_type = 'CUDA'
+  bpy.context.preferences.addons['cycles'].preferences.devices[0].use = True
+  bpy.context.scene.cycles.device = 'GPU'
+  
+  
+  
 
   # Set resolution
   bpy.context.scene.render.resolution_x = 256
@@ -112,22 +122,27 @@ def render(output_path):# Set output path
   # #print(f"Rendered image saved to: {output_path}")
   
 def calculation(x_l, y_l, x_p, y_p, l, theta):
-  x_shadow_left = y_l * x_p + y_l * math.sin(math.radians(theta)) + x_l * l * math.cos(math.radians(theta)) - y_p * x_l
-  x_shadow_left /= y_p - l * math.cos(math.radians(theta)) - y_l
+  x_shadow_left = y_l * x_p + y_l * l * math.sin(math.radians(theta)) + x_l * l * math.cos(math.radians(theta)) - y_p * x_l
+  x_shadow_left = x_shadow_left / (y_p - l * math.cos(math.radians(theta)) - y_l)
+  x_shadow_left = -x_shadow_left
   
   x_shadow_right = y_l * x_p - y_p * x_l
-  x_shadow_right /= y_p-y_l
+  x_shadow_right = -x_shadow_right/(y_p - y_l)
   
   shadow_position = (x_shadow_left+x_shadow_right)/2
   shadow_length = x_shadow_right - x_shadow_left
   
-  # global max_left, max_right
-  # if x_shadow_left < max_left:
-  #   max_left = x_shadow_left
-  # if x_shadow_right > max_right:
-  #   max_right = x_shadow_right
+  global shadow_length_limit, shadow_position_limit
+  if shadow_position > shadow_position_limit:
+    shadow_position_limit = shadow_position
+  if shadow_length > shadow_length_limit:
+    shadow_length_limit = shadow_length
   
-  return shadow_position, shadow_length, x_shadow_left, x_shadow_right
+  noise_position = np.random.randn() * 0.01 * 2.42150188818041
+  noise_length = np.random.randn() * 0.01 * 2.111104481863011
+  
+  
+  return shadow_position+noise_position, shadow_length+noise_length, x_shadow_left, x_shadow_right
 
 
 
@@ -154,7 +169,7 @@ if __name__ == "__main__":
   # set random seed
   
   random.seed(42)
-  for i in tqdm(range(1, 1_000_000), desc="Generating images"):
+  for i in tqdm(range(1, 10_000), desc="Generating images"):
 
     rotation_point = 0.2
 
@@ -166,7 +181,7 @@ if __name__ == "__main__":
     # get x_l from range_x_l
     
     legth = l = 0.1145 #m
-    rotation_degree = random.uniform(-90, 90)
+    rotation_degree = random.uniform(-60, 60)
     move_object("cylinder", (x_p, 0, y_p))
 
 
@@ -205,5 +220,4 @@ if __name__ == "__main__":
     )
         
         
-  print(f"Max left: {max_left}, Max right: {max_right}")
     
