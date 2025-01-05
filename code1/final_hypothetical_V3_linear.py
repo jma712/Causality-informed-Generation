@@ -17,7 +17,7 @@ import csv
 # c = tilt angle of the rectangular prism
 # epsilan = noise: the height of the rectangular prism above the ground
 
-# c = tan(a) + 7 b + 5 epsilan
+# c = 4 * a + 7 * b + 5 * epsilon
 
 sys.path.append(os.path.abspath('/home/lds/github/Causality-informed-Generation/code1'))
 from blender_render import clear_scene, disable_shadows_for_render, load_blend_file_backgournd, set_render_parameters, \
@@ -51,8 +51,8 @@ def main(
     # randomly generate r from 0.5 to 15
     v_cylinder = random.uniform(0.1, 1.2)
     v_ball = random.uniform(0.1, 1.4)
-    noise = (1.2 + 1.4) * 0.01 * np.random.randn()
-    angle = np.tan(v_ball) + 7 * v_cylinder + 5 * noise
+    epsilon = (1.2 + 1.4) * 0.01 * np.random.randn()
+    angle = c = 4 * v_ball + 7 * v_cylinder + 5 * epsilon
     r_ball = (3 * v_ball / (4 * math.pi))**(1/3)
     
     high_cylinder = random.uniform(0.2, 4.7)
@@ -66,7 +66,7 @@ def main(
     bpy.ops.mesh.primitive_cylinder_add(radius=r_cylinder, depth=high_cylinder, location=(r_ball + r_cylinder + 0.2, 0, high_cylinder/2))
     
     obj = load_blend_file('./database/rect_hyp.blend', 
-                    location=(-r_ball - 0.8 - 0.2, 0, noise), scale=(1, 1, 1), rotation_angle=0)
+                    location=(-r_ball - 0.8 - 0.2, 0, epsilon), scale=(1, 1, 1), rotation_angle=0)
     
     rotate_object_y_axis_by_name('rect', angle)
     
@@ -78,9 +78,8 @@ def main(
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iteration, v_ball, r_ball, v_cylinder, r_cylinder, high_cylinder, angle, noise, file_name ])
-    
-  
+        writer.writerow([iteration, v_ball, v_cylinder, angle, epsilon, file_name, r_ball, r_cylinder, high_cylinder, np.nan ])
+
 
 
 if __name__ == "__main__":
@@ -95,7 +94,7 @@ if __name__ == "__main__":
     iteration_time = arguments.size  # 每次渲染的批次数量
 
     # CSV 文件路径
-    csv_file = f"./database/rendered_h3_nonlinear_1_{resolution}P/ref_scene_{resolution}P.csv"
+    csv_file = f"./database/rendered_h3_linear_2_{resolution}P/ref_scene_{resolution}P.csv"
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
@@ -104,20 +103,21 @@ if __name__ == "__main__":
             writer.writerow([
                 "iteration",         # Iteration number
                 "volume_ball",       # Volume of the ball
-                "radius_ball",       # Radius of the ball
                 "volume_cylinder",   # Volume of the cylinder
+                "tile_angle",        # Tilt angle of the rectangular prism
+                "epsilon",           # Noise parameter
+                "image_path",         # Path to the associated image file
+                "radius_ball",       # Radius of the ball
                 "radius_cylinder",   # Radius of the cylinder
                 "height_cylinder",   # Height of the cylinder
-                "tilt_angle",        # Tilt angle of the cylinder (in degrees/radians, specify unit)
-                "noise_1",           # First noise parameter (explain its purpose)
-                "image_path"         # Path to the associated image file
+                "PS:  c = 4 * a + 7 * b + 5 * epsilon"
             ])
 
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
         scene = "H3"
-        render_output_path = f"./database/rendered_h3_nonlinear_1_{resolution}P/"
+        render_output_path = f"./database/rendered_h3_linear_2_{resolution}P/"
 
         # 使用起始帧数循环渲染 iteration_time 个批次
         for i in (range(arguments.iter, arguments.iter + iteration_time)):

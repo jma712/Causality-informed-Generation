@@ -12,11 +12,11 @@ from datetime import datetime
 import csv
 import mathutils
 
-sys.path.append(os.path.abspath('/home/ulab/dxl952/Causal_project/github/Causality-informed-Generation/code1'))
+sys.path.append(os.path.abspath('/home/lds/github/Causality-informed-Generation/code1'))
 from blender_render import clear_scene, disable_shadows_for_render, load_blend_file_backgournd, set_render_parameters, \
 move_object_to_location, render_scene, setting_camera, save_blend_file,create_rectangular_prism, rotate_object_around_edge, load_blend_file, rotate_object_y_axis_by_name
-sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")  # 请根据实际路径确认
-from tqdm import tqdm
+sys.path.append("/home/lds/miniconda3/envs/joe/lib/python3.9/site-packages/")
+import numpy as np
 
 
 def rotate_object_around_custom_axis(obj, pivot_point, angle):
@@ -229,7 +229,7 @@ if __name__ == "__main__":
         render_output_path = f"./database/rendered_h5_{h}x{w}/"
 
         # 使用起始帧数循环渲染 iteration_time 个批次
-        for i in tqdm(range(arguments.iter, arguments.iter + iteration_time), desc="Rendering"):
+        for i in (range(arguments.iter, arguments.iter + iteration_time)):
             main(
                 scene=scene,
                 render_output_path=render_output_path,

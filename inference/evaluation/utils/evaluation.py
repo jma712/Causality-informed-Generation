@@ -20,8 +20,6 @@ class evaluation():
     
     self.inference_res = None
 
-  def 
-
   def get_inference_result(self, scene_name, imgs_num = 10, random = 0):
     imgs = self.get_scene_img(scene_name, imgs_num, random)
     return imgs

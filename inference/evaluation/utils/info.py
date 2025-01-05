@@ -15,10 +15,16 @@ class scene:
       },
       "Seesaw": {
         # ![](https://cdn.jsdelivr.net/gh/DishengL/ResearchPics/20241120_150057.png)
-        "variables_4": {0: "seesaw_left_arm", 1: "left_weight", 2: "seesaw_right_arm", 3: "right_weight", 4: "seesaw_torque"},
+        "variables": {0: "seesaw_left_arm", 1: "left_weight", 2: "seesaw_right_arm", 3: "right_weight", 4: "seesaw_torque"},
         "variables_2": {0: "left_force", 1: "right_force", 2: "seesaw_torque"},
         "adjacency_matrix_2": np.array([[0,0,1],[0,0,1],[0,0,0]]),
-        "adjacency_matrix_4": np.array([[0, 0, 0, 0, 1], [0, 0, 0, 0, 1], [0, 0, 0, 0, 1], [0, 0, 0, 0, 1],
+        "adjacency_matrix": np.array([[0, 0, 0, 0, 1], [0, 0, 0, 0, 1], [0, 0, 0, 0, 1], [0, 0, 0, 0, 1],
+                                        [0, 0, 0, 0, 0]])
+      },
+      "seesaw": {
+        # ![](https://cdn.jsdelivr.net/gh/DishengL/ResearchPics/20241120_150057.png)
+        "variables": {0: "seesaw_left_arm", 1: "left_weight", 2: "seesaw_right_arm", 3: "right_weight", 4: "seesaw_torque"},
+        "adjacency_matrix": np.array([[0, 0, 0, 0, 1], [0, 0, 0, 0, 1], [0, 0, 0, 0, 1], [0, 0, 0, 0, 1],
                                         [0, 0, 0, 0, 0]])
       },
       "Magnets": {
@@ -37,8 +43,12 @@ class scene:
         "adjacency_matrix": np.array([[0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 0]])
       },
       "3_V": {
-        "variables": {0: "v_ball", 1: "v_cylinder", 2: "angle"},
+        "variables": {0: "volumn of ball", 1: "volumn of cylinder", 2: "tile angle of the rectangular prism"},
         "adjacency_matrix": np.array([[0, 1, 1], [0, 0, 1], [0, 0, 0]])
+      },
+      "3_V_nonlinear_1": {
+        "variables": {0: "volumn of ball", 1: "volumn of cylinder", 2: "tile angle of the rectangular prism"},
+        "adjacency_matrix": np.array([[0, 0, 1], [0, 0, 1], [0, 0, 0]])
       },
       "4_V": {
         "variables": {0: "v_ball", 1: "h_cylinder", 2: "d_ball_cylinder", 3: "cylinder_h_above"},
@@ -48,6 +58,23 @@ class scene:
         "variables": {0: "v_ball", 1: "h_cylinder", 2: "d_ball_cylinder", 3: "cylinder_h_above", 4: "angle"},
         "adjacency_matrix": np.array([[0,1,1,0,1],[0,0,1,0,0],[0,0,0,1,1],[0,0,0,0,1],[0,0,0,0,0]])
       },
+      "2_V_nonlinear": {
+        "variables": {0: "volumn of cylinder", 1: "volumn of ball"},
+        # b = cos(a) + 5 * epsilon
+        "adjacency_matrix": np.array([[0,1],[0,0]])
+      },
+      
+      "4_V_nonlinear": {
+        "variables": {0: "volumn of ball", 1: "volumn of cylinder", 2: "distance between ball and the cylinder", 
+                      3: "the cylinder's height above the ground"},
+        "adjacency_matrix": np.array([[0,0,1,0,],[0,0,1,0,],[0,0,0,1],[0,0,0,0]])
+      },
+      "5_V_nonlinear": {
+        "variables": {0: "volumn of ball", 1: "height of cylinder", 2: "distance between ball and cylinder", 
+                      3: "cylinder's height above the ground", 4: "tilt angle of cylinder"},
+        "adjacency_matrix": np.array([[0,0,1,0,0],[0,0,1,0,0],[0,0,0,0,1],[0,1,0,0,1],[0,0,0,0,0]])
+      },
+      
     }
     
   def get_all_scenes(self):
