@@ -419,14 +419,21 @@ def main(
   ):
     
     import uuid
-    random.seed(1)
-    for i in range(1_000_000):
+    range_v = [8105, 10_000]
+    if range_v[0] == 0 :
+      random.seed(1)
+    elif range_v[0] == 7182:
+      random.seed(123)
+    elif range_v[0] == 8105:
+      random.seed(456)
+    for i in range(range_v[0], range_v[1]):
       clear_scene()
       file_name = f"{uuid.uuid4().hex}"
       file_name = os.path.join(render_output_path, file_name+".png")
       background = "./database/background_magnet.blend"
 
       random_offset = random.uniform(0, 1.5)
+      # random_offset = random.uniform(-1.5, 1.5)
       random_left_weight = random.uniform(10, 60)
       random_right_weight = random.uniform(10, 60)
       load_blend_file(background)
@@ -447,6 +454,8 @@ def main(
           writer = csv.writer(file)
           # writer.writerow([iter, param["weight_value_l"],  param["weight_value_r"], param["lever_length"]-param["lever_x_offset"],
           #                  param["lever_length"] + param["lever_x_offset"], param['result'], param["discrete_result"], param['continuous_result(left-right+Noise(abs(l-r)*.1))'], file_name])
+          # iter is an index which following the current index in the csv file
+        
           writer.writerow([i, param["left"],  param["right"], param['noise'], param["continuous_result"],  param['result'], file_name])
 
 
@@ -526,7 +535,6 @@ def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2,
     return bbox_center + V
 
 if __name__ == "__main__":
-    # print(">>>>>>>>")
     parser = argparse.ArgumentParser(description="Blender Rendering Script")
     parser.add_argument("--iter", type=int, help="initial number")
     parser.add_argument("--resoluation", type=int, default=128, help="resolution of the image")

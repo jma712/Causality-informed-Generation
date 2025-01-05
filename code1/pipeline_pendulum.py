@@ -101,9 +101,6 @@ def render(output_path):# Set output path
   bpy.context.preferences.addons['cycles'].preferences.compute_device_type = 'CUDA'
   bpy.context.preferences.addons['cycles'].preferences.devices[0].use = True
   bpy.context.scene.cycles.device = 'GPU'
-  
-  
-  
 
   # Set resolution
   bpy.context.scene.render.resolution_x = 256
@@ -127,7 +124,12 @@ def calculation(x_l, y_l, x_p, y_p, l, theta):
   x_shadow_left = -x_shadow_left
   
   x_shadow_right = y_l * x_p - y_p * x_l
-  x_shadow_right = -x_shadow_right/(y_p - y_l)
+  x_shadow_right = x_shadow_right / (y_p - y_l)
+  x_shadow_right = -x_shadow_right
+  
+  # if x_shadow_left > x_shadow_right, replace them
+  if x_shadow_left > x_shadow_right:
+    x_shadow_left, x_shadow_right = x_shadow_right, x_shadow_left
   
   shadow_position = (x_shadow_left+x_shadow_right)/2
   shadow_length = x_shadow_right - x_shadow_left
@@ -141,10 +143,7 @@ def calculation(x_l, y_l, x_p, y_p, l, theta):
   noise_position = np.random.randn() * 0.01 * 2.42150188818041
   noise_length = np.random.randn() * 0.01 * 2.111104481863011
   
-  
   return shadow_position+noise_position, shadow_length+noise_length, x_shadow_left, x_shadow_right
-
-
 
 
 if __name__ == "__main__":
@@ -180,7 +179,7 @@ if __name__ == "__main__":
     move_object("Plane", (x_p, 0, 0))
     # get x_l from range_x_l
     
-    legth = l = 0.1145 #m
+    length = l = random.uniform(0.05, 0.115)
     rotation_degree = random.uniform(-60, 60)
     move_object("cylinder", (x_p, 0, y_p))
 
