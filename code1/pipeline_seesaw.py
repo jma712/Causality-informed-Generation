@@ -419,13 +419,17 @@ def main(
   ):
     
     import uuid
-    range_v = [8105, 10_000]
+    range_v = [9519, 10_000]
     if range_v[0] == 0 :
       random.seed(1)
     elif range_v[0] == 7182:
       random.seed(123)
     elif range_v[0] == 8105:
       random.seed(456)
+    elif range_v[0] == 8932:
+      random.seed(789)
+    elif range_v[0] == 9519:
+      random.seed(1011)
     for i in range(range_v[0], range_v[1]):
       clear_scene()
       file_name = f"{uuid.uuid4().hex}"
@@ -433,7 +437,7 @@ def main(
       background = "./database/background_magnet.blend"
 
       random_offset = random.uniform(0, 1.5)
-      # random_offset = random.uniform(-1.5, 1.5)
+      random_offset = random.uniform(-1.5, 1.5)
       random_left_weight = random.uniform(10, 60)
       random_right_weight = random.uniform(10, 60)
       load_blend_file(background)
