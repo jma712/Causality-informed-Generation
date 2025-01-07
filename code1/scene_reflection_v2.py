@@ -9,8 +9,9 @@ import random
 from mathutils import Vector
 import os
 import csv
+import concurrent.futures
 # causal graph: https://cdn.jsdelivr.net/gh/DishengL/ResearchPics/reflection.png
-
+import uuid
 def setting_camera(location, target):
     """
     在场景中添加一个相机，并将其位置和指向设置为目标点。
@@ -156,7 +157,8 @@ def load_blend_file_backgournd(filepath):
 
 def set_render_parameters(resolution=(1920, 1080), file_format='PNG', 
                           output_path="../database/rendered_image.png",
-                          circle = False):
+                          circle = False, gpu_id = 0):
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     bpy.context.scene.render.resolution_x = resolution[0]
     bpy.context.scene.render.resolution_y = resolution[1]
     bpy.context.scene.render.resolution_percentage = 100
@@ -164,22 +166,23 @@ def set_render_parameters(resolution=(1920, 1080), file_format='PNG',
     bpy.context.scene.render.image_settings.file_format = file_format
     
     if circle:
-      # 检查并启用 Cycles 插件
-      if not bpy.context.preferences.addons.get("cycles"):
-          bpy.ops.preferences.addon_enable(module="cycles")
-          
       bpy.context.scene.render.engine = 'CYCLES'
       bpy.context.scene.render.resolution_percentage = 60
-      bpy.context.scene.render.resolution_x = resolution[0]
-      bpy.context.scene.render.resolution_y = resolution[0]
-      # 设置渲染设备为 GPU
-      bpy.context.preferences.addons['cycles'].preferences.compute_device_type = 'CUDA'  # 使用 CUDA，如果是 RTX 卡可以改为 'OPTIX'
-      bpy.context.scene.cycles.device = 'GPU'
 
-      # 启用所有可用的 GPU 设备
-      for device in bpy.context.preferences.addons['cycles'].preferences.devices:
-          device.use = True
-      print("当前渲染设备:", bpy.context.scene.cycles.device)
+      bpy.context.preferences.addons[
+          "cycles"
+      ].preferences.compute_device_type = "CUDA" # or "OPENCL"
+
+      # Set the device and feature set
+      bpy.context.scene.cycles.device = "GPU"
+
+      # get_devices() to let Blender detects GPU device
+      bpy.context.preferences.addons["cycles"].preferences.get_devices()
+      print(bpy.context.preferences.addons["cycles"].preferences.compute_device_type)
+      for d in bpy.context.preferences.addons["cycles"].preferences.devices:
+          d["use"] = 1 # Using all devices, include GPU and CPU
+          print(d["name"], d["use"])
+
 
 def calculate_reflection_vector(incident_point):
     """
@@ -206,7 +209,8 @@ def calculate_reflection_vector(incident_point):
     reflection_vector = incident_vector - 2 * np.dot(incident_vector, normal_vector) * normal_vector
     
     # noise is 10% of the reflection vector
-    noise = random.uniform(-0.05, 0.05) * reflection_vector
+    # noise = random.uniform(-0.05, 0.05) * reflection_vector
+    noise = np.random.randn() * 0.01 * np.array([1, 0, 1])
     
     reflection_vector_with_noise = reflection_vector + noise
     
@@ -224,6 +228,7 @@ def draw_decreasing_probability_sample_once(low=0, high=10, scale=1.5):
     返回:
     - 单个采样值
     """
+    # 
     value = np.random.exponential(scale)
     value = np.clip(value, low, high)  # 将值截断在 [low, high] 范围内
     return value
@@ -272,18 +277,24 @@ def main(
     resolution = 128
   ):
     clear_scene()
-    current_time = datetime.now()
-    file_name = current_time.strftime("%Y%m%d_%H%M%S")  # 格式化为 YYYYMMDD_HHMMSS
+    # get number of gpu
+    num_gpus = 4
+    gpu_id = iteration % num_gpus
+
+    
+
+    file_name = str(uuid.uuid4())
     file_name = os.path.join(render_output_path, file_name+".png")
 
     background = "./database/reflection_space.blend"
     load_blend_file_backgournd(background)
 
 
-    set_render_parameters(output_path=file_name, circle = circle, resolution=(resolution, resolution))
+    set_render_parameters(output_path=file_name, circle = circle, resolution=(resolution, resolution), gpu_id=gpu_id)
     incident_point = generate_random_coordinates()
     incident_vector, reflection_vector, noise = calculate_reflection_vector(incident_point)
     random_color = (random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1), 1)  # 随机 RGB，A 设置为 1
+    random_color = (0, 0.0, 1, 1)
     incident_beam = create_laser_beam(name = "IncidentBeam", color = random_color)
     reflect_beam = create_laser_beam(name = "ReflectBeam", color = random_color)
     place_and_align_cylinder(incident_beam, incident_vector)
@@ -299,9 +310,36 @@ def main(
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iteration, incident_vector.tolist(),  reflection_vector.tolist(), noise.tolist(), list(camera_location),
-                         random_color, file_name])
+        incident_vector = [incident_vector[0], incident_vector[-1]]
+        reflection_vector = [reflection_vector[0], reflection_vector[-1]]
+        noise = [noise[0], noise[-1]]
+        writer.writerow([iteration, incident_vector,  reflection_vector, noise, file_name.split("/")[-1]])
 
+
+def run_main(i, background, scene, render_output_path, csv_file, circle, resolution):
+    random.seed(i)  # For Python's random module
+    np.random.seed(i)  # For NumPy's random module
+
+    # Simulate random operations
+    print(f"Task {i} random value (Python): {random.random()}")
+    print(f"Task {i} random value (NumPy): {np.random.rand()}")
+    main(
+        background=background,
+        scene=scene,
+        render_output_path=render_output_path,
+        csv_file=csv_file,
+        iteration=i,
+        circle=circle,
+        resolution=resolution
+    )
+import logging
+import traceback
+logging.basicConfig(
+    filename="errors.log",  # 日志文件名
+    level=logging.ERROR,  # 记录错误级别及以上的日志
+    format="%(asctime)s - %(levelname)s - %(message)s",  # 日志格式
+    datefmt="%Y-%m-%d %H:%M:%S"  # 时间格式
+)
 
 
 if __name__ == "__main__":
@@ -314,20 +352,23 @@ if __name__ == "__main__":
 
     arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
     resolution =  arguments.resolution
-    iteration_time = arguments.size  # 每次渲染的批次数量
 
     # CSV 文件路径
     csv_file = f"./database/rendered_reflection_{resolution}P/reflection_scene_{resolution}P.csv"
     if arguments.circle:
       csv_file = f"./database/rendered_reflection_{resolution}P/refleciton_scene_circle_{resolution}P.csv"
-
+    # if os.path.exists(csv_file):
+    #     # clear the directory
+    #     import shutil
+    #     shutil.rmtree(os.path.dirname(csv_file))
+    os.makedirs(os.path.dirname(csv_file), exist_ok=True)
     # 检查文件是否存在
     if not os.path.exists(csv_file):
         init = True
         # 文件不存在，创建并写入表头
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["iter", "incident_vector", "reflection_vector_with_noise", "noise", "camera_location", "color", "images"])
+            writer.writerow(["iter", "incident_vector", "reflection_vector_with_noise", "noise",  "images"])
     else:
         init = False
 
@@ -343,13 +384,35 @@ if __name__ == "__main__":
         #   render_output_path = f'./database/rendered_reflection_circle_{resolution}P/'
 
         # 使用起始帧数循环渲染 iteration_time 个批次
-        for i in (range(arguments.iter, arguments.iter + iteration_time)):
-            main(
-                background=background,
-                scene=scene,
-                render_output_path=render_output_path,
-                csv_file=csv_file,
-                iteration=i,
-                circle = arguments.circle,
-                resolution = resolution
-            )
+        # np.random.seed(42)
+        num_iterations = 10_000
+
+        # for i in (range(arguments.iter, arguments.iter + iteration_time)):
+        # for i in range(10_000):
+        #     main(
+        #         background=background,
+        #         scene=scene,
+        #         render_output_path=render_output_path,
+        #         csv_file=csv_file,
+        #         iteration=i,
+        #         circle = arguments.circle,
+        #         resolution = resolution
+        #     )
+        
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            # Submit tasks to the pool
+            futures = [
+                executor.submit(run_main, i, background, scene, render_output_path, csv_file, arguments.circle, resolution)
+                for i in range(7174, num_iterations)
+            ]
+            
+            # Wait for all tasks to complete
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    future.result()  # Raise exception if any occurred
+                except Exception as e:
+                    # 记录到控制台
+                    print(f"An error occurred: {e}")
+
+                    # 记录到日志文件
+                    logging.error("Task failed with exception: %s", traceback.format_exc())

@@ -140,8 +140,8 @@ def calculation(x_l, y_l, x_p, y_p, l, theta):
   if shadow_length > shadow_length_limit:
     shadow_length_limit = shadow_length
   
-  noise_position = np.random.randn() * 0.01 * 2.42150188818041
-  noise_length = np.random.randn() * 0.01 * 2.111104481863011
+  noise_position = np.random.randn() * 0.001 * 2.42150188818041
+  noise_length = np.random.randn() * 0.001 * 2.111104481863011
   
   return shadow_position+noise_position, shadow_length+noise_length, x_shadow_left, x_shadow_right
 
