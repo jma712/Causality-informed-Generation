@@ -9,6 +9,10 @@ import random
 from mathutils import Vector
 import os
 import csv
+sys.path.append("/home/ulab/.local/lib/python3.11/site-packages")  # 请根据实际路径确认
+# from tqdm import tqdm
+import shutil
+import uuid
 
 
 material_density = {
@@ -267,7 +271,7 @@ def resize_object_on_z_axis(object_name, scale_factor):
         
       
     
-    print(f"Object '{object_name}' resized on Z axis by a factor of {scale_factor}.")
+    # print(f"Object '{object_name}' resized on Z axis by a factor of {scale_factor}.")
 
 def disable_shadows_for_render():
     """
@@ -373,8 +377,7 @@ def main(
     circle = False,
   ):
     clear_scene()
-    current_time = datetime.now()
-    file_name = current_time.strftime("%Y%m%d_%H%M%S")  # 格式化为 YYYYMMDD_HHMMSS
+    file_name = str(uuid.uuid4())
     file_path = os.path.join(render_output_path, file_name+".png")
 
 
@@ -383,15 +386,15 @@ def main(
 
     set_render_parameters(output_path=file_path, resolution=(resolution, resolution))
     camera_location = (random.uniform(-0, 0), random.uniform(15, 15), random.uniform(1, 1))
-    # load_blend_file("./database/Spring.blend")
+    load_blend_file("./database/Spring.blend")
     
     
-    materials = ["Iron", "Wood"]
+    materials = ["Wood"]
     material = random.choice(materials)
     if material == "Iron":
       weight = random.uniform(0.1, 1)
     elif material == "Wood":
-      weight = random.uniform(0.1, 1)
+      weight = random.uniform(0.05, 1)
     x,y,z, cube = create_cube_based_on_weight(weight=weight, density=material_density[material])
 
     spring_constant = 10  # 弹簧劲度系数 (N/m)
@@ -400,39 +403,39 @@ def main(
     max_deformation = high * 0.83
     deformation, noise = calculate_spring_deformation(weight, spring_constant, max_deformation)
     
-    # spring = bpy.data.objects.get("spring")
-    # scale_factor = (high - deformation) /  high
-    # resize_object_on_z_axis("spring", scale_factor)
-    # move_object_to_location("Weight_Cube", (0, 0, high*scale_factor+z/2))
+    spring = bpy.data.objects.get("spring")
+    scale_factor = (high - deformation) /  high
+    resize_object_on_z_axis("spring", scale_factor)
+    move_object_to_location("Weight_Cube", (0, 0, (high/10)*scale_factor+z/2))
     
 
-    # if material == "Iron":
-    #   apply_pbr_material(
-    #       obj=cube, 
-    #       texture_dir="./database/material/Metal055A_1K-JPG/",  # 替换为实际路径
-    #       texture_files={
-    #           'Base Color': 'Metal055A_1K-JPG_Color.jpg',
-    #           'Metalness': 'Metal055A_1K-JPG_Metalness.jpg',
-    #           'Roughness': 'Metal055A_1K-JPG_Roughness.jpg',
-    #           'Normal': 'Metal055A_1K-JPG_NormalGL.jpg'
-    #       }
-    #   )
-    # elif material == "Wood":
-    #   apply_pbr_material(
-    #       obj=cube, 
-    #       texture_dir="./database/material/Wood066_1K-JPG/",  # 替换为实际路径
-    #       texture_files={
-    #           'Base Color': 'Wood066_1K-JPG_Color.jpg',
-    #           'Roughness': 'Wood066_1K-JPG_Roughness.jpg',
-    #           'Normal': 'Wood066_1K-JPG_NormalGL.jpg'
-    #       }
-    #   )
+    if material == "Iron":
+      apply_pbr_material(
+          obj=cube, 
+          texture_dir="./database/material/Metal055A_1K-JPG/",  # 替换为实际路径
+          texture_files={
+              'Base Color': 'Metal055A_1K-JPG_Color.jpg',
+              'Metalness': 'Metal055A_1K-JPG_Metalness.jpg',
+              'Roughness': 'Metal055A_1K-JPG_Roughness.jpg',
+              'Normal': 'Metal055A_1K-JPG_NormalGL.jpg'
+          }
+      )
+    elif material == "Wood":
+      apply_pbr_material(
+          obj=cube, 
+          texture_dir="./database/material/Wood066_1K-JPG/",  # 替换为实际路径
+          texture_files={
+              'Base Color': 'Wood066_1K-JPG_Color.jpg',
+              'Roughness': 'Wood066_1K-JPG_Roughness.jpg',
+              'Normal': 'Wood066_1K-JPG_NormalGL.jpg'
+          }
+      )
     
 
-    # target_location = (0, 0, 1.6)
-    # setting_camera(camera_location, target_location)
+    target_location = (0, 0, 1.6)
+    setting_camera(camera_location, target_location)
 
-    # render_scene()
+    render_scene()
     # if save_path:
     #     save_blend_file("./temp.blend")
         
@@ -443,11 +446,8 @@ def main(
         writer.writerow([iter, weight,  high, deformation, noise, max_deformation, spring_constant, material, (x,y,z)])
 
     return
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Blender Rendering Script")
-
     parser.add_argument("--iter", type=int, help="initial number")
     parser.add_argument('--circle', action='store_true', help="A boolean flag argument")
     parser.add_argument("--size", type=int, help="size of each iteration")
@@ -458,10 +458,14 @@ if __name__ == "__main__":
     resolution =  arguments.resolution
 
     # CSV 文件路径
-    csv_file = f"./database/rendered_spring_{resolution}P/spring_scene_{resolution}P_new.csv"
+    generate_folder = f"./database/spring_scene_{resolution}P"
+    # if os.path.exists(generate_folder):
+    #   raise ValueError(f"File '{generate_folder}' already exists.")
+    # else:
+    #   os.makedirs(generate_folder)
+    csv_file = f"{generate_folder}/spring_scene_{resolution}P.csv"
     if arguments.circle:
-      csv_file = f"./database/rendered_spring_circle_{resolution}P/spring_scene_circle_{resolution}P_new.csv"
-
+      csv_file = f"{generate_folder}/spring_scene_{resolution}P.csv"
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
@@ -473,16 +477,14 @@ if __name__ == "__main__":
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        
-
         # 设置背景、场景和渲染输出路径
         background = "./database/blank_background_spring.blend"
-        render_output_path = f"./database/rendered_spring_{resolution}P/"
+        render_output_path = generate_folder
         if arguments.circle:
-          render_output_path = './database/rendered_spring_circle_{resolution}//'
-
+          render_output_path = generate_folder
         # 使用起始帧数循环渲染 iteration_time 个批次
         for i in range(arguments.iter, arguments.iter + iteration_size):
+            np.random.seed(i)
             main(
                 background=background,
                 render_output_path=render_output_path,
