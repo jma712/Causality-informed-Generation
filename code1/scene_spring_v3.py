@@ -443,7 +443,7 @@ def main(
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
         # writer.writerow([iter, weight,  high, deformation, noise, max_deformation, spring_constant, f"{material}'s density:{material_density[material]}", (x,y,z), file_path])
-        writer.writerow([iter, weight,  high, deformation, noise, max_deformation, spring_constant, material, (x,y,z)])
+        writer.writerow([iter, weight,  high, deformation, noise, max_deformation, spring_constant, material, (x,y,z), file_path])
 
     return
 if __name__ == "__main__":
@@ -472,7 +472,7 @@ if __name__ == "__main__":
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
             # writer.writerow(["iter", "weight", "spring high", "deformation", "noise", "max_deformation", "spring_constant", "matrial", "cube size", "img_path"])
-            writer.writerow(["iter", "weight", "spring high", "deformation", "noise", "max_deformation", "spring_constant", "matrial", "cube size",])
+            writer.writerow(["iter", "weight", "spring high", "deformation", "noise", "max_deformation", "spring_constant", "matrial", "cube size", "img_path"])
 
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:

@@ -3,16 +3,17 @@ import os
 import sys
 import subprocess
 res = subprocess.run(["which", "python"],capture_output=True, text=True).stdout
-
+import uuid
 
 import argparse
 import sys
 import random
 from mathutils import Vector
 import math
-
+import multiprocessing as mp
+from functools import partial
 # sys.path.append(res.split("bin")[0] + "lib/python3.12/site-packages/")
-sys.path.append("/home/lds/miniconda3/envs/joe/lib/python3.12/site-packages/")
+sys.path.append("/home/lds/miniconda3/envs/joe/lib/python3.9/site-packages/")
 # sys.path.append("/usr/lib/python3.12/site-packages/")
 import numpy as np
 from typing import Tuple, Union, Optional
@@ -48,7 +49,6 @@ def calculate_node_magnetic_info(
     node_position: Tuple[float, float],  # 待计算节点位置
     strength: float = 1.0,  # 磁场强度系数
     visualize: bool = True,  # 是否显示可视化
-    png_name: str = None,
 ) -> NodeInfo:
     """
     计算特定节点在磁场中的信息并可选择性地可视化
@@ -128,52 +128,6 @@ def calculate_node_magnetic_info(
         # noised_angle_degrees = np.degrees(noisy_angle) % 360,
         # noise = noise
     )
-    
-    # 可视化部分
-    # if visualize:
-    #     # 如果没有提供ax，创建新的图形
-        
-    #     fig, ax = plt.subplots(figsize=(10, 10))
-            
-    #     # 绘制磁铁
-    #     ax.plot([south[0], north[0]], [south[1], north[1]], 'r-', linewidth=4, label='Magnet')
-    #     ax.plot(north[0], north[1], 'ro', markersize=10, label='N pole')
-    #     ax.plot(south[0], south[1], 'bo', markersize=10, label='S pole')
-        
-    #     # 绘制节点位置
-    #     ax.plot(node[0], node[1], 'go', markersize=8, label='Node')
-        
-    #     # 绘制磁场方向
-    #     if not np.all(field_direction == 0):
-    #         # 箭头长度设为磁铁长度的1/4
-    #         arrow_length = magnet_length / 4
-    #         ax.quiver(node[0], node[1], 
-    #                  field_direction[0], field_direction[1],
-    #                  angles='xy', scale_units='xy', scale=1/arrow_length,
-    #                  color='g', width=0.005, label='Field Direction')
-        
-    #     # 添加文本信息
-    #     text_info = f'Angle: {result.angle_degrees:.1f}°'
-    #     ax.text(node[0], node[1] + magnet_length/8, text_info,
-    #             horizontalalignment='center', verticalalignment='bottom')
-        
-    #     # 设置图形属性
-    #     ax.grid(True)
-    #     ax.set_aspect('equal')
-    #     ax.legend()
-    #     ax.set_xlabel('X')
-    #     ax.set_ylabel('Y')
-    #     ax.set_title('Magnetic Field Analysis')
-        
-    #     # 自动调整坐标轴范围
-    #     margin = magnet_length
-    #     ax.set_xlim(min(south[0], north[0], node[0]) - margin,
-    #                max(south[0], north[0], node[0]) + margin)
-    #     ax.set_ylim(min(south[1], north[1], node[1]) - margin,
-    #                max(south[1], north[1], node[1]) + margin)
-        
-    #     if ax is not None:
-    #         plt.savefig(png_name)
     
     return result
 
@@ -285,29 +239,29 @@ def load_blend_file_backgournd(filepath):
 def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png", samples=500, use_denoising=True, use_transparent_bg=False):
     """设置渲染参数，包括分辨率、格式、输出路径和高质量渲染设置。"""
     # 设置分辨率和输出路径
+    # os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     bpy.context.scene.render.resolution_x = resolution[0]
     bpy.context.scene.render.resolution_y = resolution[1]
     bpy.context.scene.render.resolution_percentage = 100
     bpy.context.scene.render.filepath = output_path
     bpy.context.scene.render.image_settings.file_format = file_format
-    bpy.context.scene.cycles.device = 'GPU'
-    # bpy.context.scene.render.engine = 'CYCLES'
+    
+    bpy.context.scene.render.engine = 'CYCLES'
+    bpy.context.scene.render.resolution_percentage = 60
 
-    # # 设置设备为 GPU
-    # preferences = bpy.context.preferences.addons['cycles'].preferences
-    # preferences.compute_device_type = 'CUDA'  # 可选：'OPTIX', 'HIP', 'METAL'
+    bpy.context.preferences.addons[
+        "cycles"
+    ].preferences.compute_device_type = "CUDA" # or "OPENCL"
 
-    # # 启用所有可用的 GPU 设备
-    # for device in preferences.get_devices():
-    #     if device.type == 'CUDA' or device.type == 'OPTIX' or device.type == 'METAL':
-    #         device.use = True
-    #         print(f"启用设备：{device.name}")
-    #     else:
-    #         print(f"跳过设备：{device.name}")
+    # Set the device and feature set
+    bpy.context.scene.cycles.device = "GPU"
 
-    # # 设置场景使用 GPU
-    # bpy.context.scene.cycles.device = 'GPU'
-    # print("GPU 渲染已启用。")
+    # get_devices() to let Blender detects GPU device
+    bpy.context.preferences.addons["cycles"].preferences.get_devices()
+    print(bpy.context.preferences.addons["cycles"].preferences.compute_device_type)
+    for d in bpy.context.preferences.addons["cycles"].preferences.devices:
+        d["use"] = 1 # Using all devices, include GPU and CPU
+        print(d["name"], d["use"])
     
 def calculate_rotated_magnetic_moment(rotation_axis, rotation_angle, magnitude=1.0):
     """
@@ -578,8 +532,6 @@ def random_point_outside_rotated_inner_ellipse_within_camera(inner_axes, angle, 
             return (x, y)
 
 def main(
-    background = 'blank',
-    scene = 'scene',
     render_output_path = "../database/rendered_image.png",
     csv_file = None,
     iter = 0,
@@ -588,18 +540,14 @@ def main(
     overlook_only = False 
   ):
     clear_scene()
-    current_time = datetime.now()
-    file_name = current_time.strftime("%Y%m%d_%H%M%S")  # 格式化为 YYYYMMDD_HHMMSS
-    twoD_output_path = os.path.join(render_output_path, file_name+"_2D.png")
-    if 'blank' in background.lower():
-      background = "./database/background_magnet_white.blend"
-      load_blend_file_backgournd(background)
+    file_name = str(uuid.uuid4())
+
+    load_blend_file_backgournd("./database/background_magnet_white.blend")
 
     blender = "./database/magnet/magnet.blend"
     needle = "./database/compass/compass_b.blend"
     random_rotation_angle = random.uniform(0, 360)
     
-    # print(f"rotation_angle of magnet: {random_rotation_angle:.2f}")
     
     load_blend_file(blender, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=-random_rotation_angle)
 
@@ -607,7 +555,6 @@ def main(
     outer_radius = 13.2/2 + 1  # 圆环的外半径
     # needle_location = random_point_on_ring(inner_radius, outer_radius)
     needle_location = random_point_outside_rotated_inner_ellipse_within_camera((14.5, 3.5), angle=random_rotation_angle, camera_frame=(-7.5,7.5, -7.5, 7.5))
-    print(needle_location)
     # needle_location = random_point_outside_rotated_rectangle((11.5, 11.5), angle=random_rotation_angle)
     
     # needle_location = random_point_outside_rotated_rectangle()
@@ -621,45 +568,41 @@ def main(
         magnet_length=11.4,
         node_position=needle_location[:2],
         visualize=visualize,
-        png_name = twoD_output_path
     )
-   
+
     rotation_angle = result.angle_degrees
-    # print(f"rotation_angle of needle: {rotation_angle:.2f}")
-    # load_blend_file(filepath = needle, location = needle_location, 
-    #                 scale=(1, 1, 1), rotation_angle = rotation_angle)
+    load_blend_file(filepath = needle, location = needle_location, 
+                    scale=(1, 1, 1), rotation_angle = rotation_angle)
+   
 
     bpy.ops.object.camera_add()
     camera = bpy.context.object
     camera.name = "Camera"
     
-    if not overlook_only:
-      render_3D_output_path = os.path.join(render_output_path, file_name+f"_3D_{resolution}.png")
-      set_render_parameters(output_path=render_3D_output_path, resolution=(resolution, resolution))
-      fit_camera_to_objects_with_random_position(camera, ["needle", "Object_2"]) 
-      render_scene()
+    # if not overlook_only:
+    #   render_3D_output_path = os.path.join(render_output_path, file_name+f"_3D_{resolution}.png")
+    #   set_render_parameters(output_path=render_3D_output_path, resolution=(resolution, resolution))
+    #   fit_camera_to_objects_with_random_position(camera, ["needle", "Object_2"]) 
+    #   render_scene()
       
-    render_3D_over_output_path = os.path.join(render_output_path, file_name+f"_Over_3D_{resolution}p.png")
+    render_3D_over_output_path = os.path.join(render_output_path, file_name+".png")
     # fit_camera_to_objects_with_random_position(camera, ["needle", "Object_2"], over=True) 
     fit_camera_to_objects_with_random_position(camera, [ "Object_2"], over=True) 
     object_name = "Object_2"
     needle_name = "needle"
-    # set_render_parameters(output_path=render_3D_over_output_path, resolution=(resolution, resolution))
+    set_render_parameters(output_path=render_3D_over_output_path, resolution=(resolution, resolution))
     if check_objects_intersection(object_name, needle_name):
       pass
     else:
       # save_blend_file("./debug.blend")
-      # render_scene()
+      render_scene()
       
       # 将结果写入 CSV 文件
       with open(csv_file, mode="a", newline="") as file:
           writer = csv.writer(file)
           if without_2D and overlook_only:
-            # writer.writerow([iter, render_3D_over_output_path, -random_rotation_angle + 360, needle_location[0], needle_location[1], 
-            #                  result.angle_degrees, result.noised_angle_degrees, result.noise])
             writer.writerow([iter, render_3D_over_output_path, -random_rotation_angle + 360, needle_location[0], needle_location[1], 
                              result.angle_degrees])
-          # elif without_2D:
           else:
             writer.writerow([iter, render_3D_output_path, render_3D_over_output_path, twoD_output_path, -random_rotation_angle, 
                              needle_location, result.field_direction, result.noisy_field_direction, result.noise])
@@ -714,22 +657,102 @@ def render_scene():
     # print(f"渲染完成，图像已保存到：{bpy.context.scene.render.filepath}")
 
 
+def process_task(i, render_output_path, csv_file, resolution, without_2D, overlook_only):
+    """
+    Function to process a single iteration.
+    """
+    np.random.seed(i)
+    main(
+        render_output_path=render_output_path,
+        csv_file=csv_file,
+        iter=i,
+        resolution=resolution,
+        without_2D=without_2D,
+        overlook_only=overlook_only
+    )
+
+# Multi-threaded execution
+def run_in_parallel(arguments, render_output_path, csv_file, resolution):
+    # Define the range of iterations
+    start = arguments.iter
+    end = arguments.iter + iteration_time
+    print(f"Processing iterations from {start} to {end}")
+
+    # Use ThreadPoolExecutor for multi-threading
+    with ThreadPoolExecutor(max_workers=4) as executor:  # Adjust `max_workers` as needed
+        futures = [
+            executor.submit(
+                process_task, i, render_output_path, csv_file, resolution, 
+                arguments.without_2D, arguments.overlook_only
+            )
+            for i in range(start, end)
+        ]
+        for future in futures:
+            try:
+                future.result()  # Wait for each thread to complete
+            except Exception as e:
+                print(f"An error occurred: {e}")
+
+
+import multiprocessing as mp
+from functools import partial
+import numpy as np
+
+def process_task(i, render_output_path, csv_file, resolution, without_2D, overlook_only):
+    """单个进程要执行的任务"""
+    np.random.seed(i)
+    main(
+        render_output_path=render_output_path,
+        csv_file=csv_file,
+        iter=i,
+        resolution=resolution,
+        without_2D=without_2D,
+        overlook_only=overlook_only
+    )
+
+def run_multiprocess(arguments, iteration_time, render_output_path, csv_file, resolution):
+    """多进程执行主函数"""
+    print(arguments.iter, arguments.iter + iteration_time)
+    
+    # 创建进程池，使用CPU核心数量的进程
+    num_processes = mp.cpu_count()
+    pool = mp.Pool(processes=num_processes)
+    
+    # 准备任务参数
+    task_range = range(arguments.iter, arguments.iter + iteration_time)
+    
+    # 使用偏函数固定其他参数
+    process_func = partial(
+        process_task,
+        render_output_path=render_output_path,
+        csv_file=csv_file,
+        resolution=resolution,
+        without_2D=arguments.without_2D,
+        overlook_only=arguments.overlook_only
+    )
+    
+    # 使用进程池执行任务
+    try:
+        pool.map(process_func, task_range)
+    finally:
+        pool.close()
+        pool.join()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Blender Rendering Script")
-
     parser.add_argument("--iter", type=int, help="initial number")
     parser.add_argument("--resolution", type=int, help="resolution of the image")
     parser.add_argument("--overlook_only", action="store_true", help="only render the overlook image")
     parser.add_argument("--without_2D", action="store_true", help="whether use 2D figure")
     arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
 
-    iteration_time = 25  # 每次渲染的批次数量
+    iteration_time = 15  # 每次渲染的批次数量
     resolution = arguments.resolution
 
     # CSV 文件路径
     scene = "Magnetic"
-    csv_file = f"./database/rendered_{scene.lower()}_{resolution}P/magnet_scene_{resolution}P_new.csv"
+    csv_file = f"./database/magnet_scene/magnet_scene_{resolution}P.csv"
     
     try:
         with open(csv_file, mode="r") as file:
@@ -737,61 +760,40 @@ if __name__ == "__main__":
     except FileNotFoundError:
         file_exists = False
 
-    # 打开 CSV 文件，追加写入数据
-    with open(csv_file, mode="a", newline="") as file:
-        writer = csv.writer(file)
-        
-        # 如果文件不存在，写入 CSV 文件头
-        if not file_exists and arguments.overlook_only:
-            # writer.writerow(["iter", "3D_over", "magnet_direction(degree)", "needle_location_x", "needle_location_y", 
-            #                  "needle_direction(degree)", "noisy_needle_direction(degree)", "noise"])
-            writer.writerow(["iter", "3D_over", "magnet_direction(degree)", "needle_location_x", "needle_location_y", 
-                             "needle_direction(degree)"])
+    # Ensure the directory exists
+    directory = os.path.dirname(csv_file)
+    os.makedirs(directory, exist_ok=True)
+
+    # Open the CSV file in append mode and write headers if needed
+    if not file_exists and arguments.overlook_only:
+        with open(csv_file, mode="a", newline="") as file:
+            writer = csv.writer(file)
             
+            # Write headers only if the file does not exist
+            writer.writerow([
+                "iter", "3D_over", "magnet_direction(degree)", 
+                "needle_location_x", "needle_location_y", 
+                "needle_direction(degree)"
+            ])
 
-        # 设置背景、场景和渲染输出路径
-        background = "blank"
 
-        render_output_path = f"./database/rendered_{scene.lower()}_{resolution}P/"
+    render_output_path = directory
 
-        # 使用起始帧数循环渲染 iteration_time 个批次
-        for i in range(arguments.iter, arguments.iter + iteration_time):
-            main(
-                background=background,
-                scene=scene,
-                render_output_path=render_output_path,
-                csv_file=csv_file,
-                iter=i,
-                resolution=resolution,
-                without_2D = arguments.without_2D,
-                overlook_only= arguments.overlook_only
-            )
-            object_name = "Object_2"
-            obj = bpy.data.objects.get(object_name)
-            needle_name = "needle"
-            needle_object = bpy.data.objects.get(needle_name)
+    # 使用起始帧数循环渲染 iteration_time 个批次
+    print(f"Rendering {iteration_time} batches of {resolution}P images...")
+    print(arguments.iter, arguments.iter + iteration_time)
+    
 
-            if obj:
-                # 确保对象有尺寸数据
-                dimensions = obj.dimensions
-                print(f"The size of {object_name} is:")
-                print(f"X: {dimensions.x}, Y: {dimensions.y}, Z: {dimensions.z}")
-            else:
-                print(f"Object '{object_name}' not found in the scene.")
-            if needle_object:
-                # 确保对象有尺寸数据
-                dimensions = needle_object.dimensions
-                print(f"The size of {needle_name} is:")
-                print(f"X: {dimensions.x}, Y: {dimensions.y}, Z: {dimensions.z}")
-            else:
-                print(f"Object '{needle_name}' not found in the scene.")
-                
 
-            if check_objects_intersection(object_name, needle_name):
-                print(f"'{object_name}' 和 '{needle_name}' 相交了！")
-                raise Exception(f"'{object_name}' 和 '{needle_name}' 相交了！")
-            else:
-                # print(f"'{object1}' 和 '{object2}' 没有相交。")
-                pass
-                                        
-                
+    run_multiprocess(arguments, iteration_time, render_output_path, csv_file, resolution)
+    # for i in range(arguments.iter, arguments.iter + iteration_time):
+    #     np.random.seed(i)
+    #     main(
+    #         render_output_path=render_output_path,
+    #         csv_file=csv_file,
+    #         iter=i,
+    #         resolution=resolution,
+    #         without_2D = arguments.without_2D,
+    #         overlook_only= arguments.overlook_only
+    #     )                 
+              
