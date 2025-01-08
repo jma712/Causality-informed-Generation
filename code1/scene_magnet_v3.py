@@ -682,7 +682,7 @@ def run_in_parallel(arguments, render_output_path, csv_file, resolution):
     with ThreadPoolExecutor(max_workers=4) as executor:  # Adjust `max_workers` as needed
         futures = [
             executor.submit(
-                process_task, i, render_output_path, csv_file, resolution, 
+                process_task, i+12_34521, render_output_path, csv_file, resolution, 
                 arguments.without_2D, arguments.overlook_only
             )
             for i in range(start, end)
