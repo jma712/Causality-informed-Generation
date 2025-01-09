@@ -66,6 +66,7 @@
     - This is a linear model.
  
 ### 3. Convex Lens
+![convex_lens](./convex_lens.png)
 
 - **Size**: 3 variables
 
