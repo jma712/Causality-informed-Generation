@@ -71,10 +71,10 @@ def main(
     bpy.ops.mesh.primitive_cylinder_add(radius=r_cylinder, depth=high_cylinder, location=(r_ball + r_cylinder + 0.2, 0, 
                                                                                           high_cylinder/2))
     
-    obj = load_blend_file('./database/rect_hyp.blend', 
-                    location=(-r_ball - 0.8 - 0.2, 0, 0), scale=(1, 1, 1), rotation_angle=0)
+    # obj = load_blend_file('./database/rect_hyp.blend', 
+    #                 location=(-r_ball - 0.8 - 0.2, 0, 0), scale=(1, 1, 1), rotation_angle=0)
     
-    rotate_object_y_axis_by_name('rect', angle)
+    # rotate_object_y_axis_by_name('rect', angle)
     
     target_location = (0.5, 0, 2)
     camera_location = (random.uniform(0.5, 0.5), random.uniform(23, 23), random.uniform(3, 3))
@@ -86,7 +86,7 @@ def main(
         writer = csv.writer(file)
         epsilan = noise
         writer.writerow([iteration, volumn_ball, r_ball,v_cylinder, r_cylinder,high_cylinder,
-                         epsilan, file_name ])
+                         epsilan, os.path.basename(file_name) ])
     
   
 

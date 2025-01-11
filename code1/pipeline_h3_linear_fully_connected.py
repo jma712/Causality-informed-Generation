@@ -10,6 +10,7 @@ from mathutils import Vector, Matrix
 import csv
 from datetime import datetime
 import csv
+import uuid
 
 # ![](https://cdn.jsdelivr.net/gh/DishengL/ResearchPics/3hypothetical.png)
 
@@ -30,23 +31,14 @@ def main(
     with_noise = True
   ):
     """
-    In the first hypothetical example, the noise e is the height of the rectangular prism above the ground.  
-    In the second hypothetical example, the noise e is the volume of the cylinder.  
-    In the third hypothetical example, the noise e is the height of the cylinder above the ground.  
-    
-    
-    In the first hypothetical example, b = 2a; c = 3a + 5b + 0.5e.  
-    In the second hypothetical example, a = 3.5d; b = 3a; c = 4a + 3b + 9d + 0.7e.  
-    In the third hypothetical example, b = 5a; c = 6a + 2b; d = 5c; e = 7.5a + 4.5c + 4d + 0.9e.  
-    
+      b = 2 * a + ε1
+      c = 3 * a + 5 * b + ε2
+
     """
     
     clear_scene()
-    
-    current_time = datetime.now()
-    file_name = current_time.strftime("%Y%m%d_%H%M%S")  # 格式化为 YYYYMMDD_HHMMSS
+    file_name = uuid.uuid4().hex
     file_name = os.path.join(render_output_path, file_name+".png")
-    
     
     if 'blank' in background.lower():
       background = "./database/blank_background_spring.blend"
@@ -55,45 +47,43 @@ def main(
     set_render_parameters(output_path=file_name, resolution=(resolution, resolution))
     
     # randomly generate r from 0.5 to 15
-    r = random.uniform(0.1, 0.9)
-    scale = 0.01
+    r = np.random.uniform(0.1, 0.9)
+    scale = 0.1
     ball_v = 4/3 * math.pi * r**3
     max_ball_v = 4/3 * math.pi * 0.9**3
-    noise_1 = np.random.randn() * scale * max_ball_v
-    noise_1 *= 2
-    cylinder_v = 2 * ball_v + noise_1
-    max_cylinder_v = 2 * max_ball_v + scale * max_ball_v
+    epsilon_1 = np.random.randn() * scale * max_ball_v
+    cylinder_v = 2 * ball_v + epsilon_1
+    
+    max_cylinder_v = 2 * max_ball_v
+    max_tile = 3*max_ball_v + 5*max_cylinder_v
     # noise e is the height of the rectangular prism above the ground
 
-    noise_2 = np.random.randn() * scale * (max_cylinder_v * 5  + max_ball_v * 3) 
-    noise_2 *= 2
+    epsilon_2 = np.random.randn() * scale * (max_tile) 
     
-    e = random.uniform(0, 0.15) if with_noise else 0  # noise e is the height of the rectangular prism above the ground
-    e = 0
     #  tilt angle of the rectangular prism
-    angle = 3*ball_v + 5*cylinder_v + 0.5*noise_2  
+    angle = 3*ball_v + 5*cylinder_v + epsilon_2  
     
     # blender generate ball based on r
     bpy.ops.mesh.primitive_uv_sphere_add(radius=r, location=(0, 0, r))
     # blender generate cylinder with volume cylinder_v
-    r_cylinder = random.uniform(0.9 * r, 2.8 * r)
+    r_cylinder = np.random.uniform(0.9 * r, 2.8 * r)
     high_cylinder = 2*cylinder_v/(math.pi*r_cylinder**2)
     bpy.ops.mesh.primitive_cylinder_add(radius=r_cylinder, depth=high_cylinder, location=(r + r_cylinder + 0.2, 0, high_cylinder/2))
     
     obj = load_blend_file('./database/rect_hyp.blend', 
-                    location=(-r - 0.8 - 0.2, 0, e), scale=(1, 1, 1), rotation_angle=0)
+                    location=(-r - 0.8 - 0.2, 0, 0), scale=(1, 1, 1), rotation_angle=0)
     
     rotate_object_y_axis_by_name('rect', angle)
     
     target_location = (1, 0, 2)
-    camera_location = (random.uniform(1, 1), random.uniform(23, 23), random.uniform(3, 3))
+    camera_location = (np.random.uniform(1, 1), random.uniform(23, 23), random.uniform(3, 3))
     setting_camera(camera_location, target_location, len_=90)
     render_scene()
     
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iteration, ball_v, cylinder_v, noise_1, angle, noise_2, file_name ])
+        writer.writerow([iteration, ball_v, cylinder_v, epsilon_1, angle, epsilon_2, file_name ])
     
   
 
@@ -110,7 +100,7 @@ if __name__ == "__main__":
     iteration_time = arguments.size  # 每次渲染的批次数量
 
     # CSV 文件路径
-    csv_file = f"./database/rendered_h3_{resolution}P/ref_scene_{resolution}P.csv"
+    csv_file = f"./database/rendered_h3_linear_fully_connected_{resolution}P/ref_scene_{resolution}P.csv"
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
@@ -123,10 +113,11 @@ if __name__ == "__main__":
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
         scene = "H3"
-        render_output_path = f"./database/rendered_h3_{resolution}P/"
+        render_output_path = f"./database/rendered_h3_linear_fully_connected_{resolution}P/"
 
         # 使用起始帧数循环渲染 iteration_time 个批次
         for i in (range(arguments.iter, arguments.iter + iteration_time)):
+            np.random.seed(i)
             main(
                 scene=scene,
                 render_output_path=render_output_path,
