@@ -4,6 +4,9 @@ scene_path = "/home/lds/github/Causality-informed-Generation/code1/database/conv
 candle_path = "/home/lds/github/Causality-informed-Generation/code1/database/convex_len_scene/candle.blend"
 import os
 import csv
+
+import argparse
+import sys
 # Open the .blend file (this replaces the current scene)
 
 def load_object_from_blend(filepath, object_name, location, scale=(1.0, 1.0, 1.0), transparency=1.0):
@@ -81,7 +84,7 @@ def set_object_transparency(obj, transparency, material_name=None):
             # print(f"材质名称 '{mat.name}' 与指定名称 '{material_name}' 不匹配，跳过。")
             
             
-def set_render_param(resolution=(512, 216), file_format='PNG', 
+def set_render_param(resolution=(512, 256), file_format='PNG', 
                           output_path="../database/rendered_image.png",
                           circle = True, gpu_id = 0):
     os.environ["CUDA_VISIBLE_DEVICES"] = "3"
@@ -112,8 +115,6 @@ def set_render_param(resolution=(512, 216), file_format='PNG',
 
 def render_image():
     bpy.ops.render.render(write_still=True)
-    
-import bpy
 
 def setup_camera(location=(0, 0, 10), rotation=(0, 0, 0), focal_length = None, camera_name="Camera"):
     """
@@ -155,19 +156,23 @@ def setup_camera(location=(0, 0, 10), rotation=(0, 0, 0), focal_length = None, c
     
     
 if __name__ == "__main__":
-    set_render_param()
+    parser = argparse.ArgumentParser(description="Blender Rendering Script")
+
+    parser.add_argument("--iter", type=int, help="initial number")
+    parser.add_argument("--size", type=int, help="size of each iteration")
+    parser.add_argument('--resolution', type=int, help="resolution of the image")
+
+    arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
+    resolution =  arguments.resolution
+    iteration_time = arguments.size  # 每次渲染的批次数量
+    
     original_height = 0.16
     scale = 3
     height_scale = 1.3
     focus = 0.55
     focus_2 = 2 * focus
-    
-    range_A = u = np.arange(focus, focus_2, 0.01)
-    
-    range_B = np.arange(focus_2, 3.2, 0.01)
-    
     transparency_range = np.linspace(0.55, 1.1, 1000)
-    max_mag = 3.3 / focus
+    max_mag = 3.4 / focus
     min_mag = focus_2 / focus_2
     mag_range = np.linspace(min_mag, max_mag, 1000)
 
@@ -175,37 +180,45 @@ if __name__ == "__main__":
     setup_camera(location=(-0.75, 8, -0.05), rotation=None, focal_length=None, camera_name="Camera")
     render_output = "/home/lds/github/Causality-informed-Generation/code1/database/convex_len_render_images"
     csv_file = "/home/lds/github/Causality-informed-Generation/code1/database/convex_len_render_images/render.csv"
-    for i in range(10000):
-      np.random.seed(i)
-      set_render_param(output_path = os.path.join(render_output, f"{i}.png"))
-      d_a = u = np.random.uniform(0.652, focus_2)
-      d_b = v = 1/ (1/focus - 1/u)
-    
-      # if csv does not exist, create it
-  
-      if not os.path.exists(csv_file):
-          with open(csv_file, mode='w', newline='') as file:
-              writer = csv.writer(file)
-              writer.writerow(["iter", "focal length", "Dist_object", "Dist_image", 'Magnification', "imgs"])  # 表头
-      
-      magnification = d_b/d_a
-      index = (np.abs(mag_range - magnification)).argmin()
-      transparency = transparency_range[-index]
-      # 追加数据到 CSV 文件
-      with open(csv_file, mode='a', newline='') as file:
-          writer = csv.writer(file)
-          writer.writerow([i, focus, u, v, -magnification,  f"{i}.png"])
-      obj1 = load_object_from_blend(candle_path, "candle", (d_a, 0, original_height * height_scale), scale = (scale, scale, height_scale))
-      obj2 = load_object_from_blend(candle_path, "candle", (-d_b, 0, -original_height * height_scale * magnification + 0.01), 
-                            scale = (scale * magnification, scale * magnification, -height_scale * magnification), transparency = transparency)
-      # 保存blender文件
-      render_image()
-      # 删除对象
-      if obj1:
-          bpy.data.objects.remove(obj1, do_unlink=True)  # 删除对象并从场景中取消链接
 
-      if obj2:
-          bpy.data.objects.remove(obj2, do_unlink=True)  # 删除对象并从场景中取消链接
+    # Ensure the CSV file has headers if it doesn't exist
+    if not os.path.exists(csv_file):
+        with open(csv_file, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["iter", "focal length", "Dist_object", "Dist_image", "Magnification", "imgs"])
 
-      
-    
+    # Open CSV file once for appending
+    with open(csv_file, mode="a", newline="") as file:
+        writer = csv.writer(file)
+
+        # Render iterations
+        for i in range(arguments.iter, arguments.iter + iteration_time):
+            np.random.seed(i)
+
+            # Randomly sample distances
+            d_a = u = np.random.uniform(0.652, focus_2)
+            d_b = v = 1 / (1 / focus - 1 / u)
+
+            # Calculate magnification and transparency
+            magnification = d_b / d_a
+            index = (np.abs(mag_range - magnification)).argmin()
+            transparency = transparency_range[-index]
+
+            # Log data to CSV
+            writer.writerow([i, focus, u, v, -magnification, f"{i}.png"])
+
+            # Set render parameters and load objects
+            set_render_param(resolution=(512, 256),
+                             output_path=os.path.join(render_output, f"{i}.png"))
+            obj1 = load_object_from_blend(candle_path, "candle", (d_a, 0, original_height * height_scale),
+                                          scale=(scale, scale, height_scale))
+            obj2 = load_object_from_blend(candle_path, "candle", (-d_b, 0, -original_height * height_scale * magnification + 0.01),
+                                          scale=(scale * magnification, scale * magnification, -height_scale * magnification),
+                                          transparency=transparency)
+
+            # Render and clean up
+            render_image()
+            if obj1:
+                bpy.data.objects.remove(obj1, do_unlink=True)
+            if obj2:
+                bpy.data.objects.remove(obj2, do_unlink=True)

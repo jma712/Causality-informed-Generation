@@ -127,7 +127,8 @@ def load_blend_file_backgournd(filepath):
             bpy.context.collection.objects.link(obj)
     print("场景已导入成功！")
 
-def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png", res = None):
+def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png", 
+                          res = None, circle = False):
     """设置渲染参数，包括分辨率、格式和输出路径。"""
     bpy.context.scene.render.resolution_x = resolution[1]
     bpy.context.scene.render.resolution_y = resolution[0]
@@ -137,8 +138,9 @@ def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_pat
       bpy.context.scene.render.resolution_percentage = 100
     bpy.context.scene.render.filepath = output_path
     bpy.context.scene.render.image_settings.file_format = file_format
-    # bpy.context.scene.render.engine = 'CYCLES'
-    print("渲染参数已设置。")
+    if circle:
+      bpy.context.scene.render.engine = 'CYCLES'
+    # print("渲染参数已设置。")
 
 def save_blend_file(filepath):
     """保存当前场景为指定的 .blend 文件，直接覆盖原有文件。"""
