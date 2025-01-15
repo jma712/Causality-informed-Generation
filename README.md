@@ -20,9 +20,9 @@
 2. Hypothetical example with 4 variables:  
 
     Variable a = the volume of the ball;  
-    Variable b = the height of the cylinder;  
-    Variable c = the distance between the ball and the cylinder;  
-    Variable d = the tilt angle of the cylinder.  
+    Variable b = the height of the cuboid;  
+    Variable c = the base area of the cuboid;  
+    Variable d = the base area of the pyramid.  
 
     The causal graph is:  
     <img width="100%" alt="causal_graph_2" src="2.png">
@@ -30,10 +30,10 @@
 3. Hypothetical example with 5 variables:  
 
     Variable a = the volume of the ball;  
-    Variable b = the height of the cylinder;  
-    Variable c = the distance between the ball and the cylinder;  
-    Variable d = the volume of the rectangular prism;  
-    Variable e = the tilt angle of the cylinder.
+    Variable b = the height of the cuboid;  
+    Variable c = the base area of the cuboid;  
+    Variable d = the base area of the the pyramid;  
+    Variable e = the height of the pyramid.
 
     The causal graph is:  
     <img width="75%" alt="causal_graph_3" src="3.png">
