@@ -46,8 +46,8 @@
     
 ### Linear/nonlinear  
     Linear:  
-    In the first hypothetical example, b = 2a + ε1; c = 3a + 5b + 5ε2.  
-    In the second hypothetical example, a = 3.5d + ε1; b = 3a + ε2; c = 4a + 3b + 9d + 0.7ε3.  
+    In the first hypothetical example, b = 0.2a + ε1; c = 0.3a + 0.5b + 5ε2.  
+    In the second hypothetical example, a = 0.5d + ε1; b = 0.3a + ε2; c = 0.4a + 0.6b + 0.9d + 0.7ε3.  
     In the third hypothetical example, b = 5a + ε1; c = 6a + 2b + ε2; d = 2c + ε3; e = 7.5a + 4.5c + 4d + 0.9ε4.  
     
 ### Background  
