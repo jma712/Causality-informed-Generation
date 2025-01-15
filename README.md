@@ -32,7 +32,7 @@
     Variable a = the volume of the ball;  
     Variable b = the height of the cuboid;  
     Variable c = the base area of the cuboid;  
-    Variable d = the base area of the the pyramid;  
+    Variable d = the base area of the pyramid;  
     Variable e = the height of the pyramid.
 
     The causal graph is:  
@@ -48,7 +48,7 @@
     Linear:  
     In the first hypothetical example, b = 4a + ε1; c = -10a + 10b + ε2.  
     In the second hypothetical example, a = 0.5d + ε1; b = 0.3a + ε2; c = 0.4a + 0.6b + 0.9d + ε3.  
-    In the third hypothetical example, b = 5a + ε1; c = 6a + 2b + ε2; d = 2c + ε3; e = 7.5a + 4.5c + 4d + ε4.  
+    In the third hypothetical example, b = 0.01a + ε1; c = -0.01a + 16b + ε2; d = 1.2c + ε3; e = 5a - 0.5c + 2d + ε4.  
     
 ### Background  
 
