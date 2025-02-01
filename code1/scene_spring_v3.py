@@ -15,6 +15,7 @@ import shutil
 import uuid
 
 
+
 material_density = {
     "Water": 1.0,                # 水
     "Air": 0.0012,               # 空气
@@ -38,7 +39,7 @@ material_density = {
     "Uranium": 18.95             # 铀
 }
 
-def setting_camera(location, target, scene_bounds=((-30, 30), (-30, 30), (0, 30))):
+def setting_camera(location, target, scene_bounds=((-5, 5), (-5, 5), (-1, 7))):
     """
     This function sets the camera location and target.
     The camera's position should be within the range defined by the scene bounds.
@@ -64,13 +65,13 @@ def setting_camera(location, target, scene_bounds=((-30, 30), (-30, 30), (0, 30)
     if "Camera" in bpy.data.objects:
         camera = bpy.data.objects["Camera"]
         bpy.data.objects.remove(camera, do_unlink=True)
-        print("Deleted existing camera")
+        # print("Deleted existing camera")
 
     # 创建新的摄像机
     bpy.ops.object.camera_add(location=clamped_location)
     camera = bpy.context.active_object
     camera.name = "Camera"
-    print("Created new camera")
+    # print("Created new camera")
 
     # 设置摄像机朝向目标位置
     direction = Vector(target) - camera.location
@@ -78,13 +79,13 @@ def setting_camera(location, target, scene_bounds=((-30, 30), (-30, 30), (0, 30)
 
     # 将摄像机设置为当前场景的活动摄像机
     bpy.context.scene.camera = camera
-    print(f"Camera location set to {camera.location}, pointing towards {target}")
+    # print(f"Camera location set to {camera.location}, pointing towards {target}")
 
 def clear_scene():
     """删除当前场景中的所有对象。"""
     bpy.ops.object.select_all(action='SELECT')  # 选择所有对象
     bpy.ops.object.delete()  # 删除选中的对象
-    print("清空场景完成。")
+    # print("清空场景完成。")
 
 def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=0):
     """
@@ -128,15 +129,37 @@ def load_blend_file_backgournd(filepath):
     for obj in data_to.objects:
         if obj is not None:
             bpy.context.collection.objects.link(obj)
-    print("场景已导入成功！")
 
-def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png"):
+def set_render_parameters(resolution=(1920, 1080), file_format='PNG', 
+                          output_path="../database/rendered_image.png", circle = False):
     """设置渲染参数，包括分辨率、格式和输出路径。"""
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(3)
     bpy.context.scene.render.resolution_x = resolution[0]
     bpy.context.scene.render.resolution_y = resolution[1]
-    bpy.context.scene.render.resolution_percentage = 250
+    bpy.context.scene.render.resolution_percentage = 100
     bpy.context.scene.render.filepath = output_path
     bpy.context.scene.render.image_settings.file_format = file_format
+    bpy.context.scene.eevee.taa_samples = 128*2
+    bpy.context.scene.eevee.taa_render_samples = 128*4
+    
+    if circle:
+      bpy.context.scene.render.engine = 'CYCLES'
+      bpy.context.scene.cycles.samples = 2800  #渲染时的采样数
+      # bpy.context.scene.render.resolution_percentage = 60
+
+      bpy.context.preferences.addons[
+          "cycles"
+      ].preferences.compute_device_type = "CUDA" # or "OPENCL"
+
+      # Set the device and feature set
+      bpy.context.scene.cycles.device = "GPU"
+
+      # get_devices() to let Blender detects GPU device
+      bpy.context.preferences.addons["cycles"].preferences.get_devices()
+      print(bpy.context.preferences.addons["cycles"].preferences.compute_device_type)
+      for d in bpy.context.preferences.addons["cycles"].preferences.devices:
+          d["use"] = 1 # Using all devices, include GPU and CPU
+          print(d["name"], d["use"])
 
 def save_blend_file(filepath):
     """保存当前场景为指定的 .blend 文件，直接覆盖原有文件。"""
@@ -144,7 +167,7 @@ def save_blend_file(filepath):
         print('remove the existing file')
         os.remove(filepath)  # 删除已有文件
     bpy.ops.wm.save_as_mainfile(filepath=filepath)
-    print(f"修改后的场景已保存到：{filepath}")
+    # print(f"修改后的场景已保存到：{filepath}")
 
 def render_scene():
     """执行渲染并保存图像。"""
@@ -224,14 +247,15 @@ def calculate_spring_deformation(weight, spring_constant, max_deformation):
         raise ValueError("Max deformation must be a positive number.")
     
     # 计算形变量
-    spring_constant = 0.1
+    spring_constant = spring_constant/100
     deformation = weight / spring_constant  # x = F / k 
 
     # nosise is guassian noise
-    noise = np.random.randn() * 0.1
+    # noise = np.random.randn() * 0.1
+    noise = 0 
     
     
-    deformation += noise
+    # deformation += noise
     
     # 限制形变量在最大允许范围内
     if deformation > max_deformation:
@@ -239,6 +263,37 @@ def calculate_spring_deformation(weight, spring_constant, max_deformation):
         print("Warning: Deformation exceeded maximum limit. Limiting to max deformation.")
     
     return deformation, noise
+  
+def scale_object(object_name, scale_factor):
+    """
+    根据对象名称选择对象，并对其在 Z 轴上进行缩放。
+    
+    参数:
+        object_name (str): 需要缩放的对象的名称。
+        scale_factor (float): Z 轴的缩放因子。
+    """
+    # 获取对象
+    obj = bpy.data.objects.get(object_name)
+    
+    if obj is None:
+        raise ValueError(f"Object '{object_name}' not found in the scene.")
+    
+    # 确保对象被选中
+    bpy.ops.object.select_all(action='DESELECT')  # 取消选择所有对象
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj  # 设置为活动对象
+
+    # 调整对象的 Z 轴缩放
+    # obj.scale[2] *= scale_factor
+    bpy.ops.transform.resize(value=(scale_factor, scale_factor, 1), orient_type='GLOBAL', 
+                             orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), 
+                             orient_matrix_type='GLOBAL', constraint_axis=(False, False, True), 
+                             mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', 
+                             proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, 
+                             snap=False, snap_elements={'INCREMENT'}, use_snap_project=False, snap_target='CLOSEST', 
+                             use_snap_self=True, use_snap_edit=True, use_snap_nonedit=True, use_snap_selectable=False)
+        
+      
 
 def resize_object_on_z_axis(object_name, scale_factor):
     """
@@ -288,7 +343,7 @@ def disable_shadows_for_render():
             obj.cycles.cast_shadow = False        # 禁用投射阴影
             obj.cycles.use_receive_shadows = False  # 禁用接收阴影
     
-    print("Shadows have been disabled for rendering.")
+    # print("Shadows have been disabled for rendering.")
 
 
 def apply_pbr_material(obj, texture_dir, texture_files):
@@ -342,9 +397,11 @@ def apply_pbr_material(obj, texture_dir, texture_files):
                 links.new(texture_node.outputs['Color'], input_socket)
                 return texture_node
             else:
-                print(f"Texture not found: {texture_path}")
+              pass
+                # print(f"Texture not found: {texture_path}")
         else:
-            print(f"Texture type '{texture_type}' not provided.")
+          pass
+            # print(f"Texture type '{texture_type}' not provided.")
         return None
 
     # Load textures
@@ -377,7 +434,8 @@ def main(
     circle = False,
   ):
     clear_scene()
-    file_name = str(uuid.uuid4())
+    file_name = f"{iter}"
+    np.random.seed(iter)
     file_path = os.path.join(render_output_path, file_name+".png")
 
 
@@ -385,19 +443,22 @@ def main(
     load_blend_file_backgournd(background)
 
     set_render_parameters(output_path=file_path, resolution=(resolution, resolution))
-    camera_location = (random.uniform(-0, 0), random.uniform(15, 15), random.uniform(1, 1))
+
     load_blend_file("./database/Spring.blend")
     
     
     materials = ["Wood"]
     material = random.choice(materials)
-    if material == "Iron":
-      weight = random.uniform(0.1, 1)
-    elif material == "Wood":
-      weight = random.uniform(0.05, 1)
+    # if material == "Iron":
+    #   weight = random.uniform(0.1, 1)
+    # elif material == "Wood":
+    #   weight = random.uniform(0.05, 1)
+    weight = np.random.uniform(0.05, 1)
     x,y,z, cube = create_cube_based_on_weight(weight=weight, density=material_density[material])
 
-    spring_constant = 10  # 弹簧劲度系数 (N/m)
+    spring_constant = np.random.uniform(8,13) # 弹簧劲度系数 (N/m)
+    scale = spring_constant/10
+    scale_object("spring", scale)
 
     high = 13
     max_deformation = high * 0.83
@@ -431,19 +492,31 @@ def main(
           }
       )
     
-
+    # camera_sets= [(0, 15, 1), (0, 15, 4), (0, 15, 8),
+    #               (15, 15, 1), (15, 15, 4), (15, 15, 8),
+    #               (-15, 10, 1), (-13, 10, 4), (-10, 10, 10),]
+    
+    camera_sets= [(0, 15, 1), (0, 15, 4), (0, 15, 8),
+                (15, 15, 1), (15, 15, 4), (15, 15, 8),
+                (-15, 1.5, 1), (-13, 1.5, 4), (-8, 1.5, 8)]
+  
     target_location = (0, 0, 1.6)
-    setting_camera(camera_location, target_location)
+    for ii, camera_loc in enumerate(camera_sets):
 
-    render_scene()
-    # if save_path:
-    #     save_blend_file("./temp.blend")
-        
+      setting_camera(camera_loc, target_location)
+      file_path = os.path.join(render_output_path, file_name+f"_{ii}.png")
+      set_render_parameters(output_path=file_path, resolution=(resolution, resolution))
 
-    with open(csv_file, mode="a", newline="") as file:
-        writer = csv.writer(file)
-        # writer.writerow([iter, weight,  high, deformation, noise, max_deformation, spring_constant, f"{material}'s density:{material_density[material]}", (x,y,z), file_path])
-        writer.writerow([iter, weight,  high, deformation, noise, max_deformation, spring_constant, material, (x,y,z), file_path])
+      render_scene()
+      # if save_path:
+      #     save_blend_file("./temp.blend")
+          
+
+      with open(csv_file, mode="a", newline="") as file:
+          writer = csv.writer(file)
+          # writer.writerow([iter, weight,  high, deformation, noise, max_deformation, spring_constant, f"{material}'s density:{material_density[material]}", (x,y,z), file_path])
+          writer.writerow([iter, weight * 100,  high, deformation, max_deformation, spring_constant, 
+                          material, (x,y,z), camera_loc, os.path.basename(file_path)])
 
     return
 if __name__ == "__main__":
@@ -458,21 +531,27 @@ if __name__ == "__main__":
     resolution =  arguments.resolution
 
     # CSV 文件路径
-    generate_folder = f"./database/spring_scene_{resolution}P"
-    # if os.path.exists(generate_folder):
-    #   raise ValueError(f"File '{generate_folder}' already exists.")
-    # else:
-    #   os.makedirs(generate_folder)
-    csv_file = f"{generate_folder}/spring_scene_{resolution}P.csv"
+    generate_folder = f"./database/Real_spring_v3_{resolution}P"
+    os.makedirs(generate_folder, exist_ok=True)
+    csv_file = f"{generate_folder}/Real_spring_v3_{resolution}P.csv"
     if arguments.circle:
-      csv_file = f"{generate_folder}/spring_scene_{resolution}P.csv"
+      csv_file = f"{generate_folder}/Real_spring_v3_{resolution}P.csv"
+    
+    # folder_exist = os.path.exists(generate_folder)
+    # if folder_exist:
+    #   prompt = input("The folder already exists, please make sure you want to delete it. Press 'Y' to continue...")
+    #   if prompt == "Y":
+    #     shutil.rmtree(generate_folder)
+    #   else:
+    #     sys.exit()
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
             # writer.writerow(["iter", "weight", "spring high", "deformation", "noise", "max_deformation", "spring_constant", "matrial", "cube size", "img_path"])
-            writer.writerow(["iter", "weight", "spring high", "deformation", "noise", "max_deformation", "spring_constant", "matrial", "cube size", "img_path"])
+            writer.writerow(["iter", "weight", "spring original height", "deformation", "max_deformation", 
+                             "spring_constant", "matrial", "cube size", "camera_location", "img_path"])
 
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:

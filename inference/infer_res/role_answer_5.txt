@@ -1,0 +1,19 @@
+Based on the analysis of the variables related to a seesaw system, the causal relationships can be determined as follows:
+
+1. The **mass of the weight** on either side affects the **direction of inclination** of the seesaw.
+2. The **length of the arm of force** on either side also affects the **direction of inclination** of the seesaw.
+3. Both the **mass** and the **length of the arm** contribute to the **moment** about the fulcrum, which ultimately determines the direction of inclination.
+
+The adjacency matrix representing these relationships is as follows:
+
+```python
+adjacency_matrix = [
+    [0, 0, 0, 0, 0],  # The direction of inclination does not affect any other variable
+    [1, 0, 0, 0, 0],  # The mass of the left weight affects the direction of inclination
+    [1, 0, 0, 0, 0],  # The length of the arm on the left side affects the direction of inclination
+    [0, 0, 0, 1, 0],  # The mass of the right weight affects the direction of inclination
+    [0, 0, 0, 1, 0],  # The length of the arm on the right side affects the direction of inclination
+]
+```
+
+In this matrix, a value of `1` at the position `(i, j)` indicates that variable `i` influences variable `j`.

@@ -1,0 +1,16 @@
+To represent the causal relationships among the variables related to the seesaw system, here's the adjacency matrix as a Python 2D list:
+
+```python
+adjacency_matrix = [
+    [0, 0, 0, 0, 0],  # Direction of inclination
+    [1, 0, 0, 0, 0],  # Mass of weight on left side
+    [1, 0, 0, 0, 0],  # Length of arm of force on left side
+    [0, 0, 0, 1, 0],  # Mass of weight on right side
+    [0, 0, 0, 1, 0],  # Length of arm of force on right side
+]
+```
+
+### Explanation of the Adjacency Matrix:
+- The first variable (direction of inclination) is influenced by the others (the masses and lengths on both sides of the seesaw).
+- The influence is represented by `1` indicating a directed edge from one variable to another, while `0` signifies no direct influence.
+- For instance, the mass of the weight on the left side and the length of the arm on the left both contribute to the direction of inclination, as do the mass and length on the right side.

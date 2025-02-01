@@ -1,0 +1,15 @@
+Based on the causal relationships among the variables in the seesaw system, the adjacency matrix can be represented as follows:
+
+```python
+adjacency_matrix = [
+    [0, 1, 1, 0, 0],  # Direction of inclination influences mass (left), length (left)
+    [0, 0, 0, 1, 1],  # Mass (left) influences direction, mass (right), length (right)
+    [0, 0, 0, 1, 1],  # Length (left) influences direction, mass (right), length (right)
+    [0, 0, 0, 0, 1],  # Mass (right) influences length (right)
+    [0, 0, 0, 0, 0],  # Length (right) does not influence any other variables
+]
+```
+
+In this matrix:
+- A value of `1` indicates a causal influence from the row variable to the column variable.
+- A value of `0` indicates no causal influence.

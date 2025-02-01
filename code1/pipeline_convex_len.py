@@ -177,6 +177,9 @@ if __name__ == "__main__":
     mag_range = np.linspace(min_mag, max_mag, 1000)
 
     bpy.ops.wm.open_mainfile(filepath=scene_path)
+    locations = [(-0.75, 8, -0.05), (-0.75, 8, -0.1), (-0.75, 8, -0.5), 
+                 (-0.75, 8, -0.05), (-0.75, 8, -0.05)]
+    for i in range
     setup_camera(location=(-0.75, 8, -0.05), rotation=None, focal_length=None, camera_name="Camera")
     render_output = "/home/lds/github/Causality-informed-Generation/code1/database/convex_len_render_images"
     csv_file = "/home/lds/github/Causality-informed-Generation/code1/database/convex_len_render_images/render.csv"

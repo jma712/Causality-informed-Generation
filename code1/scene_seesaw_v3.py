@@ -100,6 +100,7 @@ def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_pat
     bpy.context.scene.render.resolution_percentage = 100
     bpy.context.scene.render.filepath = output_path
     bpy.context.scene.render.image_settings.file_format = file_format
+    bpy.context.scene.cycles.samples = 3000  #渲染时的采样数
     print("渲染参数已设置。")
 
 def render_scene():
@@ -126,37 +127,51 @@ def create_pivot(location=(1, 1, 1), radius=1, depth=1):
     bevel_modifier = pivot.modifiers.new(name="Bevel", type='BEVEL')
     bevel_modifier.width = 0.1  # 凹槽宽度
     bevel_modifier.segments = 10  # 圆角的细分数
+    
+    mat = bpy.data.materials.new(name="WoodMaterial")
+    mat.use_nodes = True
+    # pivot.data.materials.append(mat)
+
+    # 获取 Principled BSDF 节点
+    principled_bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    
+    # if principled_bsdf:
+    #     # 设置材质参数，使其更接近木材
+    #     principled_bsdf.inputs["Base Color"].default_value = (0.5, 0.3, 0.1, 1)  # 棕色
+    #     principled_bsdf.inputs["Metallic"].default_value = 0.0  # 非金属
+    #     # principled_bsdf.inputs["Specular"].default_value = 0.1  # 低反射
+    #     principled_bsdf.inputs["Roughness"].default_value = 1  # 增加粗糙度，减少反光
 
     mat = bpy.data.materials.new(name="PivotMaterial")
     mat.use_nodes = True  # 启用节点系统
 
-    # 获取节点树
-    node_tree = mat.node_tree
+    # # 获取节点树
+    # node_tree = mat.node_tree
 
-    # 清除默认节点（可选，但推荐）
-    for node in node_tree.nodes:
-        node_tree.nodes.remove(node)
+    # # 清除默认节点（可选，但推荐）
+    # for node in node_tree.nodes:
+    #     node_tree.nodes.remove(node)
 
-    # 创建节点
-    bsdf = node_tree.nodes.new(type="ShaderNodeBsdfPrincipled")
-    material_output = node_tree.nodes.new(type="ShaderNodeOutputMaterial")
-    bump_texture = node_tree.nodes.new(type="ShaderNodeTexNoise")
-    bump_node = node_tree.nodes.new(type="ShaderNodeBump")
+    # # 创建节点
+    # bsdf = node_tree.nodes.new(type="ShaderNodeBsdfPrincipled")
+    # material_output = node_tree.nodes.new(type="ShaderNodeOutputMaterial")
+    # bump_texture = node_tree.nodes.new(type="ShaderNodeTexNoise")
+    # bump_node = node_tree.nodes.new(type="ShaderNodeBump")
 
-    bsdf.inputs['Roughness'].default_value = 0.4  # 适度的粗糙度
-    bump_texture.inputs['Scale'].default_value = 10  # 调整细节级别
-    bump_node.inputs['Strength'].default_value = 0.1  # 凹凸强度
+    # bsdf.inputs['Roughness'].default_value = 0.4  # 适度的粗糙度
+    # bump_texture.inputs['Scale'].default_value = 10  # 调整细节级别
+    # bump_node.inputs['Strength'].default_value = 0.1  # 凹凸强度
 
-    # 连接节点
-    node_tree.links.new(bump_texture.outputs['Fac'], bump_node.inputs['Height'])
-    node_tree.links.new(bump_node.outputs['Normal'], bsdf.inputs['Normal'])
-    node_tree.links.new(bsdf.outputs['BSDF'], material_output.inputs['Surface'])
+    # # 连接节点
+    # node_tree.links.new(bump_texture.outputs['Fac'], bump_node.inputs['Height'])
+    # node_tree.links.new(bump_node.outputs['Normal'], bsdf.inputs['Normal'])
+    # node_tree.links.new(bsdf.outputs['BSDF'], material_output.inputs['Surface'])
 
-    # 将材质赋予圆柱
-    if len(pivot.data.materials) == 0:
-        pivot.data.materials.append(mat)  # 如果没有材质，则添加材质
-    else:
-        pivot.data.materials[0] = mat  # 如果已有材质，替换现有材质
+    # # 将材质赋予圆柱
+    # if len(pivot.data.materials) == 0:
+    #     pivot.data.materials.append(mat)  # 如果没有材质，则添加材质
+    # else:
+    #     pivot.data.materials[0] = mat  # 如果已有材质，替换现有材质
 
     return pivot
 
@@ -198,7 +213,7 @@ def create_lever(length=5, width=1, height=0.2, location=(0, 0, 0)):
     #     # 设置材质参数，使其更接近木材
     #     principled_bsdf.inputs["Base Color"].default_value = (0.5, 0.3, 0.1, 1)  # 棕色
     #     principled_bsdf.inputs["Metallic"].default_value = 0.0  # 非金属
-    #     principled_bsdf.inputs["Specular"].default_value = 0.1  # 低反射
+    #     # principled_bsdf.inputs["Specular"].default_value = 0.1  # 低反射
     #     principled_bsdf.inputs["Roughness"].default_value = 1  # 增加粗糙度，减少反光
 
     return lever
@@ -279,6 +294,19 @@ def create_weight(end_location=[0, 0, 0], weight_value=5):
 
     # **启用平滑着色**
     bpy.ops.object.shade_smooth()
+    mat = bpy.data.materials.new(name="WoodMaterial")
+    mat.use_nodes = True
+    weight.data.materials.append(mat)
+
+    # 获取 Principled BSDF 节点
+    principled_bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    
+    # if principled_bsdf:
+    #     # 设置材质参数，使其更接近木材
+    #     principled_bsdf.inputs["Base Color"].default_value = (0.2, 0.3, 0.5, 1)  # 棕色
+    #     principled_bsdf.inputs["Metallic"].default_value = 1.0  # 非金属
+    #     # principled_bsdf.inputs["Specular"].default_value = 0.1  # 低反射
+    #     principled_bsdf.inputs["Roughness"].default_value = 1  # 增加粗糙度，减少反光
 
     return weight, flag
 
@@ -314,20 +342,23 @@ def calculate(length = 5, right_w = None, left_w = None, offset = None) -> dict:
   right_mass = mass * (right_arm / length)
   left = random_left_weight * left_arm  + left_mass * left_arm/2
   right = random_right_weight * right_arm + right_mass * right_arm/2
-  noise = np.random.randn() * 0.01 * 290  # 290 is the maximum value of the difference between left and right
+  # noise = np.random.randn() * 0.01 * 290  # 290 is the maximum value of the difference between left and right
+  noise = 0
   continuous_result = left - right + noise
   
-  if left > right:
-    discrete_result = "left"
-  elif left < right:
-    discrete_result = "right"
-  else:
-    discrete_result = "balance"
+  # if left > right:
+  #   discrete_result = "left"
+  # elif left < right:
+  #   discrete_result = "right"
+  # else:
+  #   discrete_result = "balance"
     
   if continuous_result > 0:
     result = "left"
+    reverse = "right"
   elif continuous_result < 0:
     result = "right"
+    reverse = "left"
   else:
     result = "balance"
 
@@ -339,13 +370,13 @@ def calculate(length = 5, right_w = None, left_w = None, offset = None) -> dict:
           "lever_x_offset": random_offset,
           "weight_value_l": random_left_weight,
           "weight_value_r": random_right_weight,
-          "discrete_result": discrete_result,
+          # "discrete_result": discrete_result,
           "left": left,
           "right": right,
           "noise": noise,
           "continuous_result": continuous_result,
           "result": result,
-          
+          "reverse": reverse
       }
 
 
@@ -409,43 +440,173 @@ def add_seesaw(param = None, camera_location = (0, -7, 2), camera_rotation = (1.
     lever.rotation_euler[1] = angle_radians
     return param
   
+  
+def load_blend_file_backgournd(filepath):
+    """导入指定的 .blend 文件中的所有对象，并为名为 'wooden_floor' 的对象添加材质贴图。"""
+    # 导入所有对象
+    with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
+        data_to.objects = data_from.objects  # 导入所有对象
+    
+    # 链接对象到当前场景
+    for obj in data_to.objects:
+        if obj is not None:
+            bpy.context.collection.objects.link(obj)
+
+    # 为名为 wooden_floor 的对象添加材质贴图
+    wooden_floor_obj = bpy.data.objects.get("wooden_floor")
+    if wooden_floor_obj:
+        # 创建一个新的材质
+        material = bpy.data.materials.new(name="Wooden_Floor_Material")
+        material.use_nodes = True
+        
+        # 获取材质节点
+        nodes = material.node_tree.nodes
+        links = material.node_tree.links
+        bsdf_node = nodes.get("Principled BSDF")
+
+        # 添加 Base Color 贴图
+        base_color_path = "/home/lds/github/Causality-informed-Generation/code1/Wood066_1K-JPG/Wood066_1K-JPG_Color.jpg"  # 替换为实际路径
+        if base_color_path:
+            tex_image_color = nodes.new("ShaderNodeTexImage")
+            tex_image_color.image = bpy.data.images.load(base_color_path)
+            links.new(bsdf_node.inputs["Base Color"], tex_image_color.outputs["Color"])
+        
+        # 添加 Roughness 贴图
+        roughness_path = "/home/lds/github/Causality-informed-Generation/code1/Wood066_1K-JPG/Wood066_1K-JPG_Roughness.jpg"  # 替换为实际路径
+        if roughness_path:
+            tex_image_roughness = nodes.new("ShaderNodeTexImage")
+            tex_image_roughness.image = bpy.data.images.load(roughness_path)
+            links.new(bsdf_node.inputs["Roughness"], tex_image_roughness.outputs["Color"])
+        
+        # 添加 Normal Map 贴图
+        normal_map_path = "/home/lds/github/Causality-informed-Generation/code1/Wood066_1K-JPG/Wood066_1K-JPG_NormalGL.jpg"  # 替换为实际路径
+        if normal_map_path:
+            tex_image_normal = nodes.new("ShaderNodeTexImage")
+            tex_image_normal.image = bpy.data.images.load(normal_map_path)
+            normal_map_node = nodes.new("ShaderNodeNormalMap")
+            links.new(normal_map_node.inputs["Color"], tex_image_normal.outputs["Color"])
+            links.new(bsdf_node.inputs["Normal"], normal_map_node.outputs["Normal"])
+
+        # 添加 Displacement 贴图
+        displacement_path = "/home/lds/github/Causality-informed-Generation/code1/Wood066_1K-JPG/Wood066_1K-JPG_Displacement.jpg"  # 替换为实际路径
+        if displacement_path:
+            tex_image_displacement = nodes.new("ShaderNodeTexImage")
+            tex_image_displacement.image = bpy.data.images.load(displacement_path)
+            displacement_node = nodes.new("ShaderNodeDisplacement")
+            links.new(displacement_node.inputs["Height"], tex_image_displacement.outputs["Color"])
+            material_output_node = nodes.get("Material Output")
+            links.new(material_output_node.inputs["Displacement"], displacement_node.outputs["Displacement"])
+
+        # 将材质赋予 wooden_floor 对象
+        if wooden_floor_obj.data.materials:
+            wooden_floor_obj.data.materials[0] = material
+        else:
+            wooden_floor_obj.data.materials.append(material)
+
+        print(f"Material successfully applied to '{wooden_floor_obj.name}'.")
+    else:
+        print("Object 'wooden_floor' not found in the imported scene.")
+
+def add_hdr_environment(hdr_path, strength=1.0, rotation_z=0.0):
+    """
+    在 Blender 场景中添加 HDR 环境贴图。
+    
+    参数:
+        hdr_path (str): HDR 图像文件的路径。
+        strength (float): 环境光的强度 (默认值: 1.0)。
+        rotation_z (float): HDR 贴图在 Z 轴上的旋转角度（弧度，默认值: 0.0）。
+    """
+    # 获取当前场景的 World
+    world = bpy.context.scene.world
+
+    # 如果场景没有 World，则创建一个
+    if world is None:
+        world = bpy.data.worlds.new("World")
+        bpy.context.scene.world = world
+
+    # 启用节点
+    world.use_nodes = True
+    nodes = world.node_tree.nodes
+
+    # 清除现有节点
+    for node in nodes:
+        nodes.remove(node)
+
+    # 添加背景节点
+    background_node = nodes.new(type="ShaderNodeBackground")
+    background_node.location = (0, 0)
+
+    # 添加环境纹理节点
+    env_texture_node = nodes.new(type="ShaderNodeTexEnvironment")
+    env_texture_node.location = (-300, 0)
+    try:
+        env_texture_node.image = bpy.data.images.load(hdr_path)  # 加载 HDR 图像
+    except:
+        print(f"无法加载 HDR 文件: {hdr_path}")
+        return
+
+    # 添加输出节点
+    output_node = nodes.new(type="ShaderNodeOutputWorld")
+    output_node.location = (200, 0)
+
+    # 连接节点
+    links = world.node_tree.links
+    links.new(env_texture_node.outputs["Color"], background_node.inputs["Color"])
+    links.new(background_node.outputs["Background"], output_node.inputs["Surface"])
+
+    # 设置 HDRI 的强度
+    background_node.inputs["Strength"].default_value = strength
+
+    # 添加贴图坐标节点和映射节点（用于旋转）
+    texture_coord_node = nodes.new(type="ShaderNodeTexCoord")
+    texture_coord_node.location = (-600, 0)
+
+    mapping_node = nodes.new(type="ShaderNodeMapping")
+    mapping_node.location = (-450, 0)
+
+    # 连接贴图坐标节点和映射节点
+    links.new(texture_coord_node.outputs["Generated"], mapping_node.inputs["Vector"])
+    links.new(mapping_node.outputs["Vector"], env_texture_node.inputs["Vector"])
+
+    # 设置旋转值（仅旋转 Z 轴）
+    mapping_node.inputs["Rotation"].default_value[2] = rotation_z
+
+    print(f"HDR 环境贴图已成功添加: {hdr_path}")
+
+
+
 
 def main(
-    scene = 'scene',
     render_output_path = "../database/",
     save_path = "../database/modified_scene.blend",
     csv_file = None,
+    iter = None,
     resolution = 128,
+    realistic = False
   ):
-    
-    import uuid
-    range_v = [9519, 10_000]
-    if range_v[0] == 0 :
-      random.seed(1)
-    elif range_v[0] == 7182:
-      random.seed(123)
-    elif range_v[0] == 8105:
-      random.seed(456)
-    elif range_v[0] == 8932:
-      random.seed(789)
-    elif range_v[0] == 9519:
-      random.seed(1011)
-    for i in range(range_v[0], range_v[1]):
       clear_scene()
-      file_name = f"{uuid.uuid4().hex}"
+      np.random.seed(iter)
+      file_name = f"{iter}"
       file_name = os.path.join(render_output_path, file_name+".png")
       background = "./database/background_magnet.blend"
 
-      random_offset = random.uniform(0, 1.5)
-      random_offset = random.uniform(-1.5, 1.5)
-      random_left_weight = random.uniform(10, 60)
-      random_right_weight = random.uniform(10, 60)
-      load_blend_file(background)
+      np.random.seed(iter)
+      random_offset = np.random.uniform(-1.5, 1.5)
+      random_left_weight = np.random.uniform(10, 60)
+      random_right_weight = np.random.uniform(10, 60)
+      # 
+      
+      if realistic:
+        load_blend_file_backgournd("/home/lds/github/Causality-informed-Generation/code1/database/3d_scenes/background_magnet_realiscit.blend")
+      # raise ValueError("Not implemented")
+        add_hdr_environment("/home/lds/github/Causality-informed-Generation/code1/database/3d_scenes/environment/machine_shop_02_2k.hdr")
+      else:
+        load_blend_file(background)
+      
       param = add_seesaw(random_offset = random_offset,
                          random_left_weight = random_left_weight,
                          random_right_weight = random_right_weight
                          )
-      # print(param)
 
       set_render_parameters(output_path=file_name, resolution=(resolution, resolution))
 
@@ -459,8 +620,8 @@ def main(
           # writer.writerow([iter, param["weight_value_l"],  param["weight_value_r"], param["lever_length"]-param["lever_x_offset"],
           #                  param["lever_length"] + param["lever_x_offset"], param['result'], param["discrete_result"], param['continuous_result(left-right+Noise(abs(l-r)*.1))'], file_name])
           # iter is an index which following the current index in the csv file
-        
-          writer.writerow([i, param["left"],  param["right"], param['noise'], param["continuous_result"],  param['result'], file_name])
+          # since the direct of camera, the result should be opposite
+          writer.writerow([i, param["right"],  param["left"], -param["continuous_result"],  param['reverse'], os.path.basename(file_name)])
 
 
 def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2, over = False, fixed = False):
@@ -501,22 +662,30 @@ def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2,
       camera.location = Vector((bbox_center.x, bbox_center.y, bbox_center.z + max_dim + 10))
       
     elif fixed:
-      # branch = random.choice([1, 2])
-      # if branch == 1:
-      #   V =  Vector((
-      #       random_distance ,
-      #       random_distance ,
-      #       random.uniform(max_dim, max_dim)  # 随机高度
-      #   ))
-      # else:
-      #   V = Vector((
-      #       -random_distance ,
-      #       -random_distance ,
-      #       random.uniform(max_dim, max_dim)  # 随机高度
-      #   ))
-      # camera.location = bbox_center + V
+        branch = random.choice([0, 1, 2, 3])
+        if branch == 1:
+          V =  Vector((
+              random_distance ,
+              random_distance ,
+              random.uniform(max_dim, max_dim)  # 随机高度
+          ))
+        elif branch == 2:
+          V = Vector((
+              random_distance ,
+              -random_distance ,
+              random.uniform(max_dim, max_dim)  # 随机高度
+          ))
+        elif branch == 3:
+          V= Vector((0, max_dim * 1.5, 0))
+        else:
+          V = Vector((
+              -random_distance ,
+              -random_distance ,
+              random.uniform(max_dim, max_dim)  # 随机高度
+          ))
+        camera.location = bbox_center + V
         # 固定位置：从 y 轴正方向拍摄
-        V= Vector((0, max_dim * 1.5, 0))
+        # 
         camera.location = bbox_center + V
         # 指向对象中心
         camera.rotation_euler = (math.radians(90), 0, math.radians(180))
@@ -541,16 +710,19 @@ def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Blender Rendering Script")
     parser.add_argument("--iter", type=int, help="initial number")
-    parser.add_argument("--resoluation", type=int, default=128, help="resolution of the image")
+    parser.add_argument("--resolution", type=int, default=128, help="resolution of the image")
     parser.add_argument("--size_of_iteration", '-S', type=int, help="the size of each iteration")
+    parser.add_argument("--realistic", '-R', action='store_true', help="use realistic background")
     arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
     
     iteration_time =  arguments.size_of_iteration # 每次渲染的批次数量
 
     # CSV 文件路径
-    resolution = arguments.resoluation
-    csv_file = f"./database/rendered_seesaw_{resolution}P/seesaw_scene_{resolution}P_new.csv"
-
+    resolution = arguments.resolution
+    csv_file = f"./database/Real_seesaw_v3_{resolution}P/Real_REAL_BACK_seesaw_{resolution}P_new.csv"
+    if arguments.realistic:
+      csv_file = f"./database/Real_REAL_BACK_seesaw_multi/seesaw_scene_{resolution}P_realistic.csv"
+    os.makedirs(os.path.dirname(csv_file), exist_ok=True)
     # 检查文件是否存在
     if not os.path.exists(csv_file):
         init = True
@@ -562,7 +734,7 @@ if __name__ == "__main__":
             writer = csv.writer(file)
 
             # writer.writerow(["iter", "left_weight", "right_weight", "left_arm", "right_arm", 'result(up)', "result_without_noise", "continuous_result_with_noise", "images"])
-            writer.writerow(["iter", "left", "right", "noise", 'continuious result',  "res"])
+            writer.writerow(["iter", "left", "right", 'continuious result(left-right)',  "res", 'imgs'])
             # raise Exception("Please create the csv file first")
     else:
         init = False
@@ -576,16 +748,16 @@ if __name__ == "__main__":
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        # 设置背景、场景和渲染输出路径
-        scene = "Seesaw"
-        render_output_path = f"./database/rendered_seesaw_{resolution}P/"
+        render_output_path = f"./database/Real_REAL_BACK_seesaw_{resolution}P/"
+        if arguments.realistic:
+          render_output_path =  f"./database/Real_REAL_BACK_seesaw_multi"
 
         # 使用起始帧数循环渲染 iteration_time 个批次
-        # for i in (range(arguments.iter, arguments.iter + iteration_time)):#, desc="Rendering"):
-        main(
-            scene=scene,
-            render_output_path=render_output_path,
-            csv_file=csv_file,
-            # iter=i,
-            resolution = resolution
-        )
+        for i in (range(arguments.iter, arguments.iter + iteration_time)):#, desc="Rendering"):
+          main(
+              render_output_path=render_output_path,
+              csv_file=csv_file,
+              iter = i,
+              resolution = resolution,
+              realistic = arguments.realistic
+          )

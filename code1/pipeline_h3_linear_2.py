@@ -37,16 +37,15 @@ def main(
   ):
     
     clear_scene()
-    import uuid
     unique_filename = f"{iteration}"
-    file_name = os.path.join(render_output_path, unique_filename+".png")
+    file_name_ = os.path.join(render_output_path, unique_filename)
     
     
     if 'blank' in background.lower():
       background = "./database/blank_background_spring.blend"
       load_blend_file_backgournd(background)
 
-    set_render_parameters(output_path=file_name, resolution=(resolution, resolution))
+    # set_render_parameters(output_path=file_name, resolution=(resolution, resolution))
     
     # randomly generate r from 0.5 to 15
     v_ball = random.uniform(0.175, 3.5)
@@ -92,17 +91,43 @@ def main(
     bsdf.inputs["Base Color"].default_value = (0, 0, 1, 1)  # 设置为蓝色
     cone.data.materials.append(material_cone)
     
+
+    
     center = (r_ball + 1.8 * radius1 ) - (0.2 + 2 * r_cylinder + r_ball)
     target_location = (-center, 0, 2)
-    camera_location = (-center, random.uniform(20, 20), random.uniform(4.2, 4.2))
-    setting_camera(camera_location, target_location, len_=80)
-    render_scene()
     
-    area = radius1 ** 2 * math.pi
-    with open(csv_file, mode="a", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow([iteration, v_ball, high_cylinder, area, os.path.basename(file_name), 
-                         "basal_area_cone = 0.4 * volumn_ball +  0.7 * height_cylinder" ])
+    camera_location = (0, 23, 3)
+    
+    camera_locations = [(0, 23, 3), (0, 23, 15), (0, 23, 22), 
+                        (-8, 23, 3), (-8, 20, 15), (-8, 20, 20),
+                        (8, 23, 3), (8, 23, 15), (8, 23, 20),
+                        (17, 20, 3), (19, 20, 15), (10, 20, 20),
+                        (27, 20, 3), (29, 20, 15), (28, 20, 20),]
+    for it, camera_location in enumerate(camera_locations):
+        file_name = os.path.join(render_output_path, file_name_+f"_{it}.png")
+        # raise ValueError(file_name)
+        
+        setting_camera(camera_location, target_location, len_=90)
+        set_render_parameters(output_path=file_name, resolution=(resolution, resolution))
+        render_scene()    
+
+        area = radius1 ** 2 * math.pi
+        with open(csv_file, mode="a", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow([iteration, v_ball, high_cylinder, area, os.path.basename(file_name), 
+                            "basal_area_cone = 0.4 * volumn_ball +  0.7 * height_cylinder" ])
+
+
+    
+    # camera_location = (-center, random.uniform(20, 20), random.uniform(4.2, 4.2))
+    # setting_camera(camera_location, target_location, len_=80)
+    # render_scene()
+    
+    # area = radius1 ** 2 * math.pi
+    # with open(csv_file, mode="a", newline="") as file:
+    #     writer = csv.writer(file)
+    #     writer.writerow([iteration, v_ball, high_cylinder, area, os.path.basename(file_name), 
+    #                      "basal_area_cone = 0.4 * volumn_ball +  0.7 * height_cylinder" ])
 
 
 
@@ -118,7 +143,7 @@ if __name__ == "__main__":
     iteration_time = arguments.size  # 每次渲染的批次数量
 
     # CSV 文件路径
-    csv_file = f"./database/scene_h3_linear_2_{resolution}P/ref_scene_{resolution}P.csv"
+    csv_file = f"./database/Hypo_h3_linear_multi_view/ref_scene_{resolution}P.csv"
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
@@ -136,7 +161,7 @@ if __name__ == "__main__":
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
         scene = "H3"
-        render_output_path = f"./database/scene_h3_linear_2_{resolution}P/"
+        render_output_path = f"./database/Hypo_h3_linear_multi_view/"
 
         # 使用起始帧数循环渲染 iteration_time 个批次
         for i in (range(arguments.iter, arguments.iter + iteration_time)):

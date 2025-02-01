@@ -9,6 +9,7 @@ import random
 from mathutils import Vector
 import os
 import csv
+
 import concurrent.futures
 # causal graph: https://cdn.jsdelivr.net/gh/DishengL/ResearchPics/reflection.png
 import uuid
@@ -72,7 +73,6 @@ def create_laser_beam(laser_length=10, name = "LaserBeam", color = (1.0, 0, 0, 1
 
 
     return laser_beam
-
 
 def place_and_align_cylinder(cylinder, target_vector, length=2):
     """
@@ -146,7 +146,6 @@ def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angl
       )
    
 
-
 def load_blend_file_backgournd(filepath):
     """导入指定的 .blend 文件中的所有对象。"""
     with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
@@ -167,7 +166,8 @@ def set_render_parameters(resolution=(1920, 1080), file_format='PNG',
     
     if circle:
       bpy.context.scene.render.engine = 'CYCLES'
-      bpy.context.scene.render.resolution_percentage = 60
+      bpy.context.scene.cycles.samples = 100  #渲染时的采样数
+      # bpy.context.scene.render.resolution_percentage = 60
 
       bpy.context.preferences.addons[
           "cycles"
@@ -210,11 +210,11 @@ def calculate_reflection_vector(incident_point):
     
     # noise is 10% of the reflection vector
     # noise = random.uniform(-0.05, 0.05) * reflection_vector
-    noise = np.random.randn() * 0.01 * np.array([1, 0, 1])
+    # noise = np.random.randn() * 0.01 * np.array([1, 0, 1])
     
-    reflection_vector_with_noise = reflection_vector + noise
+    # reflection_vector_with_noise = reflection_vector + noise
     
-    return incident_vector, reflection_vector_with_noise,noise 
+    return incident_vector, reflection_vector , 0#, reflection_vector_with_noise,noise 
   
 def draw_decreasing_probability_sample_once(low=0, high=10, scale=1.5):
     """
@@ -233,7 +233,8 @@ def draw_decreasing_probability_sample_once(low=0, high=10, scale=1.5):
     value = np.clip(value, low, high)  # 将值截断在 [low, high] 范围内
     return value
   
-def generate_random_coordinates():
+def generate_random_coordinates(i):
+    np.random.seed(i)
     x = draw_decreasing_probability_sample_once()
     y = np.random.uniform(0, 0)
     z = np.random.uniform(1, 1) 
@@ -252,7 +253,7 @@ def setup_gpu_rendering():
 def render_scene():
     """执行渲染并保存图像。"""
     # 设置 GPU 渲染
-    # setup_gpu_rendering()
+    setup_gpu_rendering()
     
     # 执行渲染
     bpy.ops.render.render(write_still=True)
@@ -266,72 +267,139 @@ def save_blend_file(filepath):
     bpy.ops.wm.save_as_mainfile(filepath=filepath)
     print(f"修改后的场景已保存到：{filepath}")
   
+def add_hdr_environment(hdr_path, strength=1.0, rotation_z=0.0):
+    """
+    在 Blender 场景中添加 HDR 环境贴图。
+    
+    参数:
+        hdr_path (str): HDR 图像文件的路径。
+        strength (float): 环境光的强度 (默认值: 1.0)。
+        rotation_z (float): HDR 贴图在 Z 轴上的旋转角度（弧度，默认值: 0.0）。
+    """
+    # 获取当前场景的 World
+    world = bpy.context.scene.world
+
+    # 如果场景没有 World，则创建一个
+    if world is None:
+        world = bpy.data.worlds.new("World")
+        bpy.context.scene.world = world
+
+    # 启用节点
+    world.use_nodes = True
+    nodes = world.node_tree.nodes
+
+    # 清除现有节点
+    for node in nodes:
+        nodes.remove(node)
+
+    # 添加背景节点
+    background_node = nodes.new(type="ShaderNodeBackground")
+    background_node.location = (0, 0)
+
+    # 添加环境纹理节点
+    env_texture_node = nodes.new(type="ShaderNodeTexEnvironment")
+    env_texture_node.location = (-300, 0)
+    try:
+        env_texture_node.image = bpy.data.images.load(hdr_path)  # 加载 HDR 图像
+    except:
+        print(f"无法加载 HDR 文件: {hdr_path}")
+        return
+
+    # 添加输出节点
+    output_node = nodes.new(type="ShaderNodeOutputWorld")
+    output_node.location = (200, 0)
+
+    # 连接节点
+    links = world.node_tree.links
+    links.new(env_texture_node.outputs["Color"], background_node.inputs["Color"])
+    links.new(background_node.outputs["Background"], output_node.inputs["Surface"])
+
+    # 设置 HDRI 的强度
+    background_node.inputs["Strength"].default_value = strength
+
+    # 添加贴图坐标节点和映射节点（用于旋转）
+    texture_coord_node = nodes.new(type="ShaderNodeTexCoord")
+    texture_coord_node.location = (-600, 0)
+
+    mapping_node = nodes.new(type="ShaderNodeMapping")
+    mapping_node.location = (-450, 0)
+
+    # 连接贴图坐标节点和映射节点
+    links.new(texture_coord_node.outputs["Generated"], mapping_node.inputs["Vector"])
+    links.new(mapping_node.outputs["Vector"], env_texture_node.inputs["Vector"])
+
+    # 设置旋转值（仅旋转 Z 轴）
+    mapping_node.inputs["Rotation"].default_value[2] = rotation_z
+
+    print(f"HDR 环境贴图已成功添加: {hdr_path}")
+
+
+  
 def main(
     background = 'blank',
-    scene = 'scene',
     render_output_path = "../database/rendered_image.png",
     save_path = "", # "../database/modified_scene.blend",
     csv_file = None,
     iteration = 0,
     circle = False,
-    resolution = 128
+    resolution = 256
   ):
     clear_scene()
     # get number of gpu
     num_gpus = 4
     gpu_id = iteration % num_gpus
 
-    
 
-    file_name = str(uuid.uuid4())
+    file_name = f"{iteration}"
     file_name = os.path.join(render_output_path, file_name+".png")
 
-    background = "./database/reflection_space.blend"
+    background = "./database/reflection_space_real.blend"
     load_blend_file_backgournd(background)
-
+    add_hdr_environment("/home/lds/github/Causality-informed-Generation/code1/database/3d_scenes/environment/machine_shop_02_2k.hdr")
 
     set_render_parameters(output_path=file_name, circle = circle, resolution=(resolution, resolution), gpu_id=gpu_id)
-    incident_point = generate_random_coordinates()
+    incident_point = generate_random_coordinates(iteration)
     incident_vector, reflection_vector, noise = calculate_reflection_vector(incident_point)
-    random_color = (random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1), 1)  # 随机 RGB，A 设置为 1
     random_color = (0, 0.0, 1, 1)
     incident_beam = create_laser_beam(name = "IncidentBeam", color = random_color)
     reflect_beam = create_laser_beam(name = "ReflectBeam", color = random_color)
     place_and_align_cylinder(incident_beam, incident_vector)
     place_and_align_cylinder(reflect_beam, reflection_vector)
     camera_location = (random.uniform(-0, 0), random.uniform(8, 8), random.uniform(2, 2))
+    camera_locations = [[0, 8, 2], [0, 8, 5] , [0, 8, 5], 
+                        [4, 8, 2], [4, 8, 8], [4, 8, 11], 
+                        [10, 8, 2], [10, 8, 5], [10, 8, 1]]
 
     target_location = (0, 0, 1)
-    setting_camera(camera_location, target_location)
+    for it,camera_location in enumerate(camera_locations):
 
-    render_scene()
-    if save_path:
-        save_blend_file("./temp.blend")
+      file_name = f"{iteration}_{it}"
+      file_name = os.path.join(render_output_path, file_name+".png")
+      set_render_parameters(output_path=file_name, circle = circle, resolution=(resolution, resolution), gpu_id=gpu_id)
+      setting_camera(camera_location, target_location)
+      render_scene()
+      if save_path:
+          save_blend_file("./temp.blend")
 
-    with open(csv_file, mode="a", newline="") as file:
-        writer = csv.writer(file)
-        incident_vector = [incident_vector[0], incident_vector[-1]]
-        reflection_vector = [reflection_vector[0], reflection_vector[-1]]
-        noise = [noise[0], noise[-1]]
-        writer.writerow([iteration, incident_vector,  reflection_vector, noise, file_name.split("/")[-1]])
+      with open(csv_file, mode="a", newline="") as file:
+          writer = csv.writer(file)
+          incident_vector = [incident_vector[0], incident_vector[-1]]
+          reflection_vector = [reflection_vector[0], reflection_vector[-1]]
+          writer.writerow([iteration, incident_vector,  reflection_vector, os.path.basename(file_name)])
 
 
-def run_main(i, background, scene, render_output_path, csv_file, circle, resolution):
-    random.seed(i)  # For Python's random module
-    np.random.seed(i)  # For NumPy's random module
-
+def run_main(i, background, render_output_path, csv_file, circle, resolution):
     # Simulate random operations
-    print(f"Task {i} random value (Python): {random.random()}")
-    print(f"Task {i} random value (NumPy): {np.random.rand()}")
     main(
         background=background,
-        scene=scene,
         render_output_path=render_output_path,
         csv_file=csv_file,
         iteration=i,
         circle=circle,
         resolution=resolution
     )
+    
+    
 import logging
 import traceback
 logging.basicConfig(
@@ -344,7 +412,6 @@ logging.basicConfig(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Blender Rendering Script")
-
     parser.add_argument("--iter", type=int, help="initial number")
     parser.add_argument('--circle', action='store_true', help="A boolean flag argument")
     parser.add_argument("--size", type=int, help="size of each iteration")
@@ -354,13 +421,9 @@ if __name__ == "__main__":
     resolution =  arguments.resolution
 
     # CSV 文件路径
-    csv_file = f"./database/rendered_reflection_{resolution}P/reflection_scene_{resolution}P.csv"
+    csv_file = f"./database/real_rendered_reflection_{resolution}P/reflection_scene_{resolution}P.csv"
     if arguments.circle:
-      csv_file = f"./database/rendered_reflection_{resolution}P/refleciton_scene_circle_{resolution}P.csv"
-    # if os.path.exists(csv_file):
-    #     # clear the directory
-    #     import shutil
-    #     shutil.rmtree(os.path.dirname(csv_file))
+      csv_file = f"./database/real_rendered_reflection_{resolution}P/refleciton_scene_circle_{resolution}P.csv"
     os.makedirs(os.path.dirname(csv_file), exist_ok=True)
     # 检查文件是否存在
     if not os.path.exists(csv_file):
@@ -368,24 +431,19 @@ if __name__ == "__main__":
         # 文件不存在，创建并写入表头
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["iter", "incident_vector", "reflection_vector_with_noise", "noise",  "images"])
+            writer.writerow(["iter", "incident_vector", "reflection_vector",  "images"])
     else:
         init = False
 
-    # 打开 CSV 文件，追加写入数据
-    with open(csv_file, mode="a", newline="") as file:
-        writer = csv.writer(file)
+    # # 打开 CSV 文件，追加写入数据
+    # with open(csv_file, mode="a", newline="") as file:
+    #     writer = csv.writer(file)
 
-        # 设置背景、场景和渲染输出路径
-        background = "./database/reflection_space.blend"
-        scene = "Reflection"
-        render_output_path = f"./database/rendered_reflection_{resolution}P/"
-        # if arguments.circle:
-        #   render_output_path = f'./database/rendered_reflection_circle_{resolution}P/'
+    # 设置背景、场景和渲染输出路径
+    background = "./database/reflection_space_real.blend"
+    render_output_path = f"./database/Real_reflect_multi_realistic/"
 
-        # 使用起始帧数循环渲染 iteration_time 个批次
-        # np.random.seed(42)
-        num_iterations = 10_000
+    iteration_time = arguments.size  # 每次渲染的批次数量
 
         # for i in (range(arguments.iter, arguments.iter + iteration_time)):
         # for i in range(10_000):
@@ -398,21 +456,25 @@ if __name__ == "__main__":
         #         circle = arguments.circle,
         #         resolution = resolution
         #     )
+    with open("./database/real_rendered_reflection_256P/data.csv", "r", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            missing_iters_list = [int(item) for item in row]  # 转回数字类型
+            break  # 如果只有一行，就直接拿第一行即可
+    with concurrent.futures.ProcessPoolExecutor(max_workers=20) as executor:
+        # Submit tasks to the pool
+        futures = [
+            executor.submit(run_main, i, background, render_output_path, csv_file, arguments.circle, resolution)
+            for i in missing_iters_list # range(arguments.iter, arguments.iter + iteration_time)
+        ]
         
-        with concurrent.futures.ProcessPoolExecutor() as executor:
-            # Submit tasks to the pool
-            futures = [
-                executor.submit(run_main, i, background, scene, render_output_path, csv_file, arguments.circle, resolution)
-                for i in range(7174, num_iterations)
-            ]
-            
-            # Wait for all tasks to complete
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    future.result()  # Raise exception if any occurred
-                except Exception as e:
-                    # 记录到控制台
-                    print(f"An error occurred: {e}")
+        # Wait for all tasks to complete
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                future.result()  # Raise exception if any occurred
+            except Exception as e:
+                # 记录到控制台
+                print(f"An error occurred: {e}")
 
-                    # 记录到日志文件
-                    logging.error("Task failed with exception: %s", traceback.format_exc())
+                # 记录到日志文件
+                logging.error("Task failed with exception: %s", traceback.format_exc())

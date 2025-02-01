@@ -1,6 +1,11 @@
 import os  
 import random
 import numpy as np  
+import sys
+import os
+import random
+from tqdm import tqdm
+sys.path.append('/home/lds/github/Causality-informed-Generation/inference/evaluation/utils/')
 from info import scene
 
 class evaluation():

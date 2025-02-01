@@ -11,15 +11,13 @@ import csv
 from datetime import datetime
 import csv
 import mathutils
+import multiprocessing as mp
 
 # a = the volume of the ball
 # b = the height of the cylinder
 # c = the distance between the ball and the cylinder
 # d = the cylinder’s height above the ground
 # e = the tilt angle of the cylinder
-# epsilon_1 =  the height of the rectangualar above the ground
-# epsilon_2 = the volume of the cylinder
-# epsilon_3 = the distance between ball ad rectangle prism
 
 sys.path.append(os.path.abspath('/home/lds/github/Causality-informed-Generation/code1'))
 from blender_render import clear_scene, disable_shadows_for_render, load_blend_file_backgournd, set_render_parameters, \
@@ -118,11 +116,38 @@ def world_to_camera_view(scene, cam, coord):
     # Normalize
     return mathutils.Vector((co_ndc.x / co_ndc.w, co_ndc.y / co_ndc.w, co_ndc.z))
 
+def set_render_parameters(resolution=(1920, 1080), file_format='PNG', 
+                          output_path="../database/rendered_image.png", 
+                          samples=500, 
+                          use_denoising=True, use_transparent_bg=False):
+    """设置渲染参数，包括分辨率、格式、输出路径和高质量渲染设置。"""
+    # 设置分辨率和输出路径
+    # os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+    bpy.context.scene.render.resolution_x = resolution[0]
+    bpy.context.scene.render.resolution_y = resolution[1]
+    bpy.context.scene.render.resolution_percentage = 100
+    bpy.context.scene.render.filepath = output_path
+    bpy.context.scene.render.image_settings.file_format = file_format
+    
+    bpy.context.scene.render.engine = 'CYCLES'
+    # bpy.context.scene.render.resolution_percentage = 60
+    bpy.context.scene.cycles.samples = 2800  #渲染时的采样数
 
+    bpy.context.preferences.addons[
+        "cycles"
+    ].preferences.compute_device_type = "CUDA" # or "OPENCL"
+
+    # Set the device and feature set
+    bpy.context.scene.cycles.device = "GPU"
+
+    # get_devices() to let Blender detects GPU device
+    bpy.context.preferences.addons["cycles"].preferences.get_devices()
+    print(bpy.context.preferences.addons["cycles"].preferences.compute_device_type)
+    for d in bpy.context.preferences.addons["cycles"].preferences.devices:
+        d["use"] = 1 # Using all devices, include GPU and CPU
+        print(d["name"], d["use"])
 
 def main(
-    background = 'blank',
-    scene = 'scene',
     render_output_path = "../database/rendered_image.png",
     save_path = "../database/modified_scene.blend",
     csv_file= None,     
@@ -132,55 +157,73 @@ def main(
     with_noise = True
   ):
     """
-    In the first hypothetical example, the noise e is the height of the rectangular prism above the ground.  
-    In the second hypothetical example, the noise e is the volume of the cylinder.  
-    In the third hypothetical example, the noise e is the height of the cylinder above the ground.  
-    
     Variable a = the volume of a ball;
     Variable b = the height of a cylinder;
     Variable c = the distance between the ball and the cylinder;
     Variable d = the cylinder’s height above the ground;
     Variable e = the tilt angle of the cylinder.
-     
-    In the third hypothetical example, b = 5a; c = 6a + 2b; d = 2c; e = 7.5a + 4.5c + 4d + 0.9e.  
-    
     """
-    
     clear_scene()
-    
-    import uuid
-    unique_filename = f"{uuid.uuid4().hex}"
+    unique_filename = f"{iteration}"
     file_name = os.path.join(render_output_path, unique_filename+".png")
     
-    if 'blank' in background.lower():
-      background = "./database/background_magnet.blend"
-      load_blend_file_backgournd(background)
+    background = "./database/background_magnet.blend"
+    load_blend_file_backgournd(background)
+    np.random.seed(iteration)
 
-    set_render_parameters(output_path=file_name, resolution=(h, w), res = 250)
-    camera_location = (random.uniform(-0, 0), random.uniform(23, 23), random.uniform(4, 4))
+    set_render_parameters(output_path=file_name, resolution=(h, w))
+    camera_location = (0, 23, 4)
+
+    v_ball = a = np.random.uniform(1, 23)
+    height_above = d = np.random.uniform(0.5, 8)
     
-    # randomly generate r from 0.5 to 15
-
-
-    v_ball = a = random.uniform(0.1, 3)
-    height_above = d = random.uniform(0.2, 5)
-    epsilon_1 = height_rec = (1) * 0.01 * np.random.randn()
-    height_c = b =  np.sin(d) + 3 * epsilon_1
-    epsilon_2 = v_cylinder = (2 + 7) * 0.01 * np.random.randn()
-    if epsilon_2 < 0:
-        return
-    distance = c = 2 * np.cos(a) + 7 * b + 2 * epsilon_2
-    epsilon_3 = ( 10)  * 0.01 * np.random.randn()   
-    if epsilon_3 < 0.05:
-        return
-    angle = e = np.tan(c) + 2 * d + 5 * epsilon_3 
+    # Rescale d (height_above) from [0.5, 8] to [0.2, 3.14]
+    scaled_d = 0.2 + ((height_above - 0.5) * (3.14 - 0.2)) / (8 - 0.5)
+    # b = np.sin(d) 
+    height_c = b = np.sin(scaled_d)  # Height of the cylinder based on the scaled value
+    
+    # Rescale a (v_ball) from [1, 10] to [0, π/2]
+    scaled_a = 0 + ((a - 1) * (np.pi / 2 - 0)) / (23 - 1)
+    # c = 2con(a) + 7b
+    distance = c = 2 * np.cos(scaled_a) + 7 * b
+    # e = tan(c) + 2d
+    angle = e = 4 * (np.tan(c) + 2 * d)
     
     r = r_ball = (3 * v_ball / (4 * math.pi))**(1/3)
+    v_cylinder = 8
     r_cylinder = (v_cylinder / (math.pi * height_c))**(1/2)
     
     bpy.ops.mesh.primitive_uv_sphere_add(radius=r, location=(0, 0, r))
-    bpy.ops.mesh.primitive_cylinder_add(radius=r_cylinder, depth=b, location=(float(r + r_cylinder + c), 0, float(b/2 + d)))
+    sphere_object = bpy.context.object  # The newly added sphere becomes the active object
+    sphere_object.name = "RedSphere"
+
+    # Create a red material and assign it to the sphere
+    red_material = bpy.data.materials.new(name="RedMaterial")
+    red_material.use_nodes = True
+    red_bsdf = red_material.node_tree.nodes.get("Principled BSDF")
+    if red_bsdf:
+        red_bsdf.inputs["Base Color"].default_value = (1.0, 0.0, 0.0, 1.0)  # Red color with full opacity
+    sphere_object.data.materials.append(red_material)
+
+    # Add a cylinder and set its color to yellow
+    bpy.ops.mesh.primitive_cylinder_add(
+        radius=r_cylinder, 
+        depth=b, 
+        location=(float(r + r_cylinder + c), 0, float(b/2 + d))
+    )
+    cylinder_object = bpy.context.object  # The newly added cylinder becomes the active object
+    cylinder_object.name = "GreenCylinder"
+
+    # Create a yellow material and assign it to the cylinder
+    yellow_material = bpy.data.materials.new(name="GreenMaterial")
+    yellow_material.use_nodes = True
+    yellow_bsdf = yellow_material.node_tree.nodes.get("Principled BSDF")
+    if yellow_bsdf:
+        yellow_bsdf.inputs["Base Color"].default_value = (0.0, 1.0, 0.0, 1.0) # Yellow color with full opacity
+    cylinder_object.data.materials.append(yellow_material)
+
     obj = bpy.context.object
+    
     
     # Rename the object to the specified name
     obj.name = 'Cylinder'
@@ -189,34 +232,24 @@ def main(
     original_y = 0
     original_z = d
     
-    # Assume the object 'Cylinder' exists
-    # obj = bpy.data.objects.get('Cylinder')
-    # if obj:
-    #     rotate_object_around_custom_axis(obj, (original_x, original_y, original_z), angle)  # Rotate 45 degrees
-    # else:
-    #     print("Object 'Cylinder' not found.")
-    #     raise ValueError("Object 'Cylinder' not found.")
-    
     rotate_object_y_axis_by_name("Cylinder", e)
     
-    obj = load_blend_file('./database/rect_hyp.blend', 
-                    location=(-r_ball - 0.8 - 0.2, 0, epsilon_1), scale=(1, 1, 1), rotation_angle=0)
+    # obj = load_blend_file('./database/rect_hyp.blend', 
+    #                 location=(-r_ball - 0.8 - 0.2, 0, epsilon_1), scale=(1, 1, 1), rotation_angle=0)
   
     target_location = ((r + r_cylinder*2 + c) /3, 0, 4)
     camera_h = random.uniform(4, 4)
-    camera_location = ((r + r_cylinder*2 + c) /3, random.uniform(20, 20), camera_h)
+    camera_location = ((r + r_cylinder*2 + c) /3, 20, camera_h)
     setting_camera(camera_location, target_location, len_=35 )
     # Example Usage:
     camera = bpy.data.objects['Camera']  # Replace 'Camera' with your actual camera name
     # if are_objects_in_camera_view(camera):
     render_scene()
     
-    # save_blend_file(save_path)
-    
 
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([iteration, a, b, c, d, e, epsilon_1, epsilon_2, epsilon_3, file_name, np.nan])
+        writer.writerow([iteration, a, b, c, d, e, os.path.basename(file_name)])
   
 
 if __name__ == "__main__":
@@ -233,26 +266,23 @@ if __name__ == "__main__":
     iteration_time = arguments.size  # 每次渲染的批次数量
 
     # CSV 文件路径
-    csv_file = f"./database/rendered_h5_{h}x{w}_nonlinear/h5_scene_{h}x{w}.csv"
+    csv_file = f"./database/Hypothetic_V5_nonlinear_{h}x{w}/tabular.csv"
 
     # 检查文件是否存在
     if not os.path.exists(csv_file):
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(["iter", 'volume_ball', 'height_cylinder', 'distance_ball_cylinder', 
-                             'height_cylinder_above_ground', 'tilt_angle', 'epsilon_1', 'epsilon_2', "epsilon_3", 'image_path',
-                             "PS: b = np.sin(d) + 3epsilon_2, c =2*cos(a) + 7b + 2epsilon_2, e = tan(c) + 2d + 5epsilon_3" ])
+                             'height_cylinder_above_ground', 'tilt_angle', 'image_path'])
 
     # 打开 CSV 文件，追加写入数据
     with open(csv_file, mode="a", newline="") as file:
         writer = csv.writer(file)
-        scene = "H5"
-        render_output_path = f"./database/rendered_h5_{h}x{w}_nonlinear/"
+        render_output_path = f"./database/Hypothetic_V5_nonlinear_{h}x{w}/"
 
         # 使用起始帧数循环渲染 iteration_time 个批次
         for i in (range(arguments.iter, arguments.iter + iteration_time)):
             main(
-                scene=scene,
                 render_output_path=render_output_path,
                 csv_file=csv_file,
                 iteration=i,
@@ -261,6 +291,77 @@ if __name__ == "__main__":
             )
 
 
+# def process_task(start_iter, batch_size, render_output_path, csv_file, h, w, gpu_id):
+#     """
+#     A function to handle rendering for a specific GPU.
+#     """
+#     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)  # Set the GPU visible for this process
+#     with open(csv_file, mode="a", newline="") as file:
+#         writer = csv.writer(file)
+#         for i in range(start_iter, start_iter + batch_size):
+#             main(
+#                 render_output_path=render_output_path,
+#                 csv_file=csv_file,
+#                 iteration=i,
+#                 h=h,
+#                 w=w
+#             )
+
+# def main_parallel(arguments, num_gpus, processes_per_gpu, h, w):
+#     """
+#     Function to manage parallel rendering across multiple GPUs.
+#     """
+#     total_processes = num_gpus * processes_per_gpu
+#     iteration_time = arguments.size  # Total iterations to process
+#     batch_size = iteration_time // total_processes  # Number of iterations per process
+
+#     # Ensure output paths exist
+#     csv_file = f"./database/Hypothetic_V5_nonlinear_{h}x{w}/tabular.csv"
+#     os.makedirs(os.path.dirname(csv_file), exist_ok=True)
+
+#     # Initialize the CSV file if it doesn't exist
+#     if not os.path.exists(csv_file):
+#         with open(csv_file, mode="w", newline="") as file:
+#             writer = csv.writer(file)
+#             writer.writerow(["iter", 'volume_ball', 'height_cylinder', 'distance_ball_cylinder', 
+#                              'height_cylinder_above_ground', 'tilt_angle', 'image_path'])
+
+#     render_output_path = f"./database/Hypothetic_V5_nonlinear_{h}x{w}/"
+
+#     # Create and start processes
+#     processes = []
+#     for gpu_id in range(num_gpus):
+#         for thread_id in range(processes_per_gpu):
+#             start_iter = arguments.iter + (gpu_id * processes_per_gpu + thread_id) * batch_size
+#             p = mp.Process(
+#                 target=process_task,
+#                 args=(start_iter, batch_size, render_output_path, csv_file, h, w, gpu_id)
+#             )
+#             p.start()
+#             processes.append(p)
+
+#     # Wait for all processes to complete
+#     for p in processes:
+#         p.join()
+
+# if __name__ == "__main__":
+#     # Parse arguments
+#     parser = argparse.ArgumentParser(description="Blender Rendering Script")
+
+#     parser.add_argument("--iter", type=int, help="initial number")
+#     parser.add_argument("--size", type=int, help="size of each iteration")
+#     parser.add_argument('--h', type=int, help="resolution of h of the image")
+#     parser.add_argument('--w', type=int, help="resolution of w of the image")
+
+#     arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
+#     w =  arguments.w
+#     h =  arguments.h
+    
+#     num_gpus = 4  # Number of GPUs available
+#     processes_per_gpu = 10  # Number of processes per GPU
+
+#     # Run parallel processing
+#     main_parallel(arguments, num_gpus, processes_per_gpu, h, w)
 
 
 

@@ -1,0 +1,28 @@
+To determine the causal relationships among the variables related to a seesaw system, we can represent the potential relationships in an adjacency matrix format. The variables are as follows:
+
+1. The direction of inclination of the seesaw.
+2. The mass of the weight on the left side.
+3. The length of the arm of force on the left side.
+4. The mass of the weight on the right side.
+5. The length of the arm of force on the right side.
+
+From these variables, we can infer the following causal relationships:
+
+- The direction of inclination of the seesaw depends on the weights and their distances from the pivot point (torque).
+- The mass of the weight on the left side and its length affect the torque on the left side.
+- The mass of the weight on the right side and its length affect the torque on the right side.
+
+Based on these relationships, the adjacency matrix can be constructed as follows:
+
+```python
+adjacency_matrix = [
+    [0, 0, 0, 0, 0],  # 1. Direction of inclination
+    [1, 0, 0, 0, 0],  # 2. Mass on left affects direction
+    [1, 1, 0, 0, 0],  # 3. Length on left affects direction and mass
+    [1, 0, 0, 0, 0],  # 4. Mass on right affects direction
+    [1, 0, 0, 1, 0]   # 5. Length on right affects direction and mass
+]
+```
+
+- **Rows represent the variables affecting the columns.**
+- A value of `1` indicates a causal relationship, while `0` indicates no causal relationship.

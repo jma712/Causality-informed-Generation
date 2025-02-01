@@ -1,0 +1,24 @@
+Based on the variables related to the seesaw system, the causal relationships can be summarized as follows:
+
+1. **The direction of inclination of the seesaw** is affected by the difference in moments created by weights and their distances from the pivot. Specifically, this is influenced by the mass and length of the arms for both sides:
+   - The mass of the weight on the left side affects the moment on the left.
+   - The length of the arm of force on the left side also affects the moment on the left.
+   - Similarly, the mass of the weight on the right side affects the moment on the right, and the length of the arm of force on the right side does the same.
+
+Based on these relationships, the adjacency matrix representing the causal graph would be:
+
+```python
+adjacency_matrix = [
+    [0, 0, 0, 0, 0],  # Direction of inclination
+    [1, 0, 1, 0, 0],  # Mass of weight on left side
+    [1, 0, 0, 0, 0],  # Length of arm on left side
+    [0, 0, 0, 1, 1],  # Mass of weight on right side
+    [0, 0, 0, 1, 0]   # Length of arm on right side
+]
+```
+
+Here's the interpretation of the adjacency matrix:
+- The first row corresponds to how the inclination direction is influenced – it is not influenced directly by any other variable.
+- The second row indicates that the mass of the weight on the left affects both the inclination and the length of the arm on the left.
+- The third row shows that the left arm length affects the left weight mass but not the other factors.
+- The fourth and fifth rows indicate that the right weight mass influences the inclination and is influenced by the right arm length.

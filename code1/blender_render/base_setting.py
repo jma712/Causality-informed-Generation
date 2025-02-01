@@ -83,20 +83,22 @@ def clear_scene():
     bpy.ops.object.delete()  # 删除选中的对象
     print("清空场景完成。")
 
-def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=0):
+def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=0, color=None):
     """
     导入指定的 .blend 文件中的所有对象，并调整位置、缩放和旋转方向。
+    如果指定了颜色，则设置导入对象的颜色。
     
     参数:
     - filepath: str, .blend 文件的路径
     - location: tuple, 导入模型的位置 (x, y, z)
     - scale: tuple, 导入模型的缩放比例 (x, y, z)
     - rotation_angle: float, 导入模型的旋转角度（以弧度为单位）在Z轴方向
+    - color: tuple, 可选, RGBA (0-1) 格式的颜色值, 例如 (1.0, 0.0, 0.0, 1.0) 表示红色
     """
     # 导入指定的 .blend 文件中的所有对象
     with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
         data_to.objects = data_from.objects  # 选择导入所有对象
-    
+
     # 将对象链接到当前集合并应用位置、缩放和旋转
     for obj in data_to.objects:
         if obj is not None:
@@ -105,17 +107,30 @@ def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angl
             
             # 设置位置和缩放
             obj.location = location
-            bpy.context.view_layer.objects.active = obj
-            bpy.ops.object.select_all(action='DESELECT')
-            obj.select_set(True)
+            obj.scale = scale
             
-    bpy.ops.transform.rotate(
-        value=math.radians(rotation_angle),
-        orient_axis='Z',
-        orient_type='GLOBAL',
-        constraint_axis=(False, False, True)
-      )
-    
+            # 设置旋转角度
+            obj.rotation_euler[2] = math.radians(rotation_angle)
+            
+            # 如果指定了颜色，则设置对象的颜色
+            if color:
+                # 创建材质并应用颜色
+                material_name = f"{obj.name}_Material"
+                if not bpy.data.materials.get(material_name):
+                    material = bpy.data.materials.new(name=material_name)
+                else:
+                    material = bpy.data.materials[material_name]
+                
+                material.use_nodes = True
+                bsdf = material.node_tree.nodes.get("Principled BSDF")
+                if bsdf:
+                    bsdf.inputs["Base Color"].default_value = (*color[:3], 1.0)  # 设置颜色，使用 RGB，完全不透明
+                
+                # 将材质应用到对象
+                obj.data.materials.clear()  # 清除已有材质
+                obj.data.materials.append(material)
+                print(f"为对象 '{obj.name}' 设置了颜色 {color}")
+
     print("场景已导入成功！")
     
 def load_blend_file_backgournd(filepath):
@@ -127,20 +142,51 @@ def load_blend_file_backgournd(filepath):
             bpy.context.collection.objects.link(obj)
     print("场景已导入成功！")
 
+
 def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png", 
-                          res = None, circle = False):
-    """设置渲染参数，包括分辨率、格式和输出路径。"""
-    bpy.context.scene.render.resolution_x = resolution[1]
-    bpy.context.scene.render.resolution_y = resolution[0]
-    if res is not None:
-      bpy.context.scene.render.resolution_percentage = res
-    else:
-      bpy.context.scene.render.resolution_percentage = 100
+                          res=None, circle=False, use_gpu=True):
+    """
+    设置渲染参数，包括分辨率、格式、输出路径和 GPU 渲染。
+    
+    Parameters:
+        resolution (tuple): 渲染分辨率 (宽度, 高度)。
+        file_format (str): 输出文件格式，例如 'PNG' 或 'JPEG'。
+        output_path (str): 输出图像路径。
+        res (int): 分辨率百分比（1-100）。默认100%。
+        circle (bool): 是否使用 Cycles 渲染引擎。
+        use_gpu (bool): 是否启用 GPU 渲染。
+    """
+    # 设置分辨率
+    bpy.context.scene.render.resolution_x = resolution[0]
+    bpy.context.scene.render.resolution_y = resolution[1]
+    bpy.context.scene.render.resolution_percentage = res if res is not None else 100
+
+    # 设置输出路径和格式
     bpy.context.scene.render.filepath = output_path
     bpy.context.scene.render.image_settings.file_format = file_format
+
+    # 设置渲染引擎
     if circle:
-      bpy.context.scene.render.engine = 'CYCLES'
-    # print("渲染参数已设置。")
+        bpy.context.scene.render.engine = 'CYCLES'
+    else:
+        bpy.context.scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    
+    # 设置 GPU 渲染（仅适用于 Cycles）
+    if use_gpu and bpy.context.scene.render.engine == 'CYCLES':
+        bpy.context.preferences.addons['cycles'].preferences.compute_device_type = 'CUDA'  # 使用CUDA（NVIDIA GPU）
+        bpy.context.scene.cycles.device = 'GPU'
+
+        # 设置设备
+        bpy.context.preferences.addons['cycles'].preferences.get_devices()
+        for device in bpy.context.preferences.addons['cycles'].preferences.devices:
+            device.use = True  # 启用所有可用设备
+
+    print("Render parameters set:")
+    print(f"Resolution: {resolution[0]}x{resolution[1]} ({bpy.context.scene.render.resolution_percentage}%)")
+    print(f"File format: {file_format}")
+    print(f"Output path: {output_path}")
+    print(f"Engine: {'Cycles' if circle else 'Eevee'}")
+    print(f"GPU Enabled: {use_gpu and bpy.context.scene.render.engine == 'CYCLES'}")
 
 def save_blend_file(filepath):
     """保存当前场景为指定的 .blend 文件，直接覆盖原有文件。"""

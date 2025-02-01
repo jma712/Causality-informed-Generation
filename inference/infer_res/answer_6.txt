@@ -1,0 +1,29 @@
+Based on the variables related to the seesaw system, the relationships can be analyzed as follows:
+
+1. **The direction of inclination of the seesaw** is influenced by the **mass of the weight on the left side** and **the mass of the weight on the right side**. It also depends on **the length of the arm of force** on both sides.
+  
+2. The **mass of the weight on the left side** and **the length of the arm on the left side** determine the torque on the left side of the seesaw.
+
+3. Similarly, the **mass of the weight on the right side** and **the length of the arm on the right side** determine the torque on the right side.
+
+4. The seesaw will tilt (change its inclination direction) based on the comparison of torques on both sides, which are products of mass and arm length.
+
+Thus, the causal relationships can be summarized as:
+- The direction of inclination depends on the masses and lengths of the arms.
+- Both mass and length on each side affect the torque.
+
+Here is the adjacency matrix representing the causal relationships:
+
+```python
+adjacency_matrix = [
+    [0, 0, 0, 0, 0],  # The direction of inclination
+    [1, 0, 0, 0, 0],  # Mass on left influences inclination
+    [1, 0, 0, 0, 0],  # Length on left influences inclination
+    [0, 0, 1, 0, 0],  # Mass on right influences inclination
+    [0, 0, 1, 0, 0],  # Length on right influences inclination
+]
+```
+
+This matrix indicates that:
+- The left mass and length (indices 1 and 2) influence the inclination (index 0).
+- The right mass and length (indices 3 and 4) also influence the inclination (index 0), reflecting the torque calculations.

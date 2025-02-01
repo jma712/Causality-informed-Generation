@@ -49,6 +49,7 @@ def calculate_node_magnetic_info(
     node_position: Tuple[float, float],  # 待计算节点位置
     strength: float = 1.0,  # 磁场强度系数
     visualize: bool = True,  # 是否显示可视化
+    iteration = None
 ) -> NodeInfo:
     """
     计算特定节点在磁场中的信息并可选择性地可视化
@@ -66,6 +67,7 @@ def calculate_node_magnetic_info(
         NodeInfo 对象，包含节点位置和磁场方向信息
     """
     # 转换输入为numpy数组
+    np.random.seed(iteration)
     center = np.array(magnet_center)
     node = np.array(node_position)
     
@@ -135,7 +137,6 @@ def clear_scene():
     """删除当前场景中的所有对象。"""
     bpy.ops.object.select_all(action='SELECT')  # 选择所有对象
     bpy.ops.object.delete()  # 删除选中的对象
-    # print("清空场景完成。")
 
 def fit_camera_to_objects_with_random_position(camera, object_names, margin=1.2, over = False):
     """
@@ -227,14 +228,72 @@ def load_blend_file(filepath, location=(0, 0, 0), scale=(1, 1, 1), rotation_angl
       )
     
     # print("场景已导入成功！")
-    
+
 def load_blend_file_backgournd(filepath):
-    """导入指定的 .blend 文件中的所有对象。"""
+    """导入指定的 .blend 文件中的所有对象，并为名为 'wooden_floor' 的对象添加材质贴图。"""
+    # 导入所有对象
     with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
-        data_to.objects = data_from.objects  # 选择导入所有对象
+        data_to.objects = data_from.objects  # 导入所有对象
+    
+    # 链接对象到当前场景
     for obj in data_to.objects:
         if obj is not None:
             bpy.context.collection.objects.link(obj)
+
+    # 为名为 wooden_floor 的对象添加材质贴图
+    wooden_floor_obj = bpy.data.objects.get("wooden_floor")
+    if wooden_floor_obj:
+        # 创建一个新的材质
+        material = bpy.data.materials.new(name="Wooden_Floor_Material")
+        material.use_nodes = True
+        
+        # 获取材质节点
+        nodes = material.node_tree.nodes
+        links = material.node_tree.links
+        bsdf_node = nodes.get("Principled BSDF")
+
+        # 添加 Base Color 贴图
+        base_color_path = "/home/lds/github/Causality-informed-Generation/code1/Wood066_1K-JPG/Wood066_1K-JPG_Color.jpg"  # 替换为实际路径
+        if base_color_path:
+            tex_image_color = nodes.new("ShaderNodeTexImage")
+            tex_image_color.image = bpy.data.images.load(base_color_path)
+            links.new(bsdf_node.inputs["Base Color"], tex_image_color.outputs["Color"])
+        
+        # 添加 Roughness 贴图
+        roughness_path = "/home/lds/github/Causality-informed-Generation/code1/Wood066_1K-JPG/Wood066_1K-JPG_Roughness.jpg"  # 替换为实际路径
+        if roughness_path:
+            tex_image_roughness = nodes.new("ShaderNodeTexImage")
+            tex_image_roughness.image = bpy.data.images.load(roughness_path)
+            links.new(bsdf_node.inputs["Roughness"], tex_image_roughness.outputs["Color"])
+        
+        # 添加 Normal Map 贴图
+        normal_map_path = "/home/lds/github/Causality-informed-Generation/code1/Wood066_1K-JPG/Wood066_1K-JPG_NormalGL.jpg"  # 替换为实际路径
+        if normal_map_path:
+            tex_image_normal = nodes.new("ShaderNodeTexImage")
+            tex_image_normal.image = bpy.data.images.load(normal_map_path)
+            normal_map_node = nodes.new("ShaderNodeNormalMap")
+            links.new(normal_map_node.inputs["Color"], tex_image_normal.outputs["Color"])
+            links.new(bsdf_node.inputs["Normal"], normal_map_node.outputs["Normal"])
+
+        # 添加 Displacement 贴图
+        displacement_path = "/home/lds/github/Causality-informed-Generation/code1/Wood066_1K-JPG/Wood066_1K-JPG_Displacement.jpg"  # 替换为实际路径
+        if displacement_path:
+            tex_image_displacement = nodes.new("ShaderNodeTexImage")
+            tex_image_displacement.image = bpy.data.images.load(displacement_path)
+            displacement_node = nodes.new("ShaderNodeDisplacement")
+            links.new(displacement_node.inputs["Height"], tex_image_displacement.outputs["Color"])
+            material_output_node = nodes.get("Material Output")
+            links.new(material_output_node.inputs["Displacement"], displacement_node.outputs["Displacement"])
+
+        # 将材质赋予 wooden_floor 对象
+        if wooden_floor_obj.data.materials:
+            wooden_floor_obj.data.materials[0] = material
+        else:
+            wooden_floor_obj.data.materials.append(material)
+
+        print(f"Material successfully applied to '{wooden_floor_obj.name}'.")
+    else:
+        print("Object 'wooden_floor' not found in the imported scene.")
 
 def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_path="../database/rendered_image.png", samples=500, use_denoising=True, use_transparent_bg=False):
     """设置渲染参数，包括分辨率、格式、输出路径和高质量渲染设置。"""
@@ -247,7 +306,8 @@ def set_render_parameters(resolution=(1920, 1080), file_format='PNG', output_pat
     bpy.context.scene.render.image_settings.file_format = file_format
     
     bpy.context.scene.render.engine = 'CYCLES'
-    bpy.context.scene.render.resolution_percentage = 60
+    # bpy.context.scene.render.resolution_percentage = 60
+    bpy.context.scene.cycles.samples = 2800  #渲染时的采样数
 
     bpy.context.preferences.addons[
         "cycles"
@@ -361,9 +421,9 @@ def random_point_on_ring(inner_radius, outer_radius):
         随机生成的点 (x, y, z)。
     """
     # 随机生成一个半径，位于内外半径之间
-    radius = random.uniform(inner_radius, outer_radius)
+    radius = np.random.uniform(inner_radius, outer_radius)
     # 随机生成一个角度
-    angle = random.uniform(0, 2 * np.pi)
+    angle = np.random.uniform(0, 2 * np.pi)
     
     # 计算点的 x 和 y 坐标
     x = radius * np.cos(angle)
@@ -416,8 +476,8 @@ def random_point_outside_rotated_rectangle(image_size, rect_size = (2.2411911487
 
     while True:
         # 随机生成点的 x 和 y 坐标在图像范围内
-        x = random.uniform(-image_width / 2, image_width / 2)
-        y = random.uniform(-image_height / 2, image_height / 2)
+        x = np.random.uniform(-image_width / 2, image_width / 2)
+        y = np.random.uniform(-image_height / 2, image_height / 2)
 
         # 检查点是否在旋转矩形内
         point_in_rect = point_in_rotated_rectangle(x, y, rect_width, rect_height, angle)
@@ -501,7 +561,52 @@ def check_objects_intersection(object_name1, object_name2):
         # 恢复原始几何体数据
         obj1.data = original_mesh
 
-def random_point_outside_rotated_inner_ellipse_within_camera(inner_axes, angle, camera_frame):
+def xx(location, target_location, camera_name="Camera"):
+    """
+    添加一个相机到指定位置，并将其指向目标位置，同时设置相机名称。
+
+    :param location: tuple(float, float, float), 相机的位置 (x, y, z)。
+    :param target_location: tuple(float, float, float), 相机目标的位置 (x, y, z)。
+    :param camera_name: str, 相机的名称。
+    """
+    # 创建相机对象
+    bpy.ops.object.camera_add(location=location)
+    camera = bpy.context.object  # 获取刚添加的相机对象
+    camera.name = camera_name
+    camera.data.lens = 20
+
+    # 创建一个空对象作为目标
+    bpy.ops.object.empty_add(type='PLAIN_AXES', location=target_location)
+    target = bpy.context.object
+    target.name = f"{camera_name}_Target"
+
+    # 添加跟踪约束，让相机指向目标
+    track_constraint = camera.constraints.new(type='TRACK_TO')
+    track_constraint.target = target
+    track_constraint.track_axis = 'TRACK_NEGATIVE_Z'
+    track_constraint.up_axis = 'UP_Y'
+
+    print(f"Camera '{camera_name}' added at {location}, pointing to {target_location}.")
+
+def delete_object_by_name(object_name):
+    """
+    删除指定名称的对象。
+    
+    :param object_name: str, 要删除的对象名称。
+    """
+    obj = bpy.data.objects.get(object_name)  # 获取指定名称的对象
+    if obj:
+        # 将对象从场景中取消链接
+        bpy.data.objects.remove(obj, do_unlink=True)
+        print(f"Object '{object_name}' has been deleted.")
+    else:
+        print(f"Object '{object_name}' not found.")
+
+
+def random_point_outside_rotated_inner_ellipse_within_camera(inner_axes, 
+                                                             angle, 
+                                                             camera_frame,
+                                                             iteration):
     """
     随机生成一个点，该点位于旋转内椭圆外部，同时位于相机取景框范围内。
 
@@ -515,11 +620,11 @@ def random_point_outside_rotated_inner_ellipse_within_camera(inner_axes, angle, 
     """
     inner_a, inner_b = inner_axes
     x_min, x_max, y_min, y_max = camera_frame
-
+    np.random.seed(iteration)
     while True:
         # 随机生成一个点在相机取景框范围内
-        x = random.uniform(x_min, x_max)
-        y = random.uniform(y_min, y_max)
+        x = np.random.uniform(x_min, x_max)
+        y = np.random.uniform(y_min, y_max)
 
         # 将点的坐标旋转到内椭圆的局部坐标系
         cos_angle = np.cos(angle)
@@ -531,30 +636,109 @@ def random_point_outside_rotated_inner_ellipse_within_camera(inner_axes, angle, 
         if (local_x**2 / inner_a**2 + local_y**2 / inner_b**2) >= 1:
             return (x, y)
 
+def add_hdr_environment(hdr_path, strength=1.0, rotation_z=0.0):
+    """
+    在 Blender 场景中添加 HDR 环境贴图。
+    
+    参数:
+        hdr_path (str): HDR 图像文件的路径。
+        strength (float): 环境光的强度 (默认值: 1.0)。
+        rotation_z (float): HDR 贴图在 Z 轴上的旋转角度（弧度，默认值: 0.0）。
+    """
+    # 获取当前场景的 World
+    world = bpy.context.scene.world
+
+    # 如果场景没有 World，则创建一个
+    if world is None:
+        world = bpy.data.worlds.new("World")
+        bpy.context.scene.world = world
+
+    # 启用节点
+    world.use_nodes = True
+    nodes = world.node_tree.nodes
+
+    # 清除现有节点
+    for node in nodes:
+        nodes.remove(node)
+
+    # 添加背景节点
+    background_node = nodes.new(type="ShaderNodeBackground")
+    background_node.location = (0, 0)
+
+    # 添加环境纹理节点
+    env_texture_node = nodes.new(type="ShaderNodeTexEnvironment")
+    env_texture_node.location = (-300, 0)
+    try:
+        env_texture_node.image = bpy.data.images.load(hdr_path)  # 加载 HDR 图像
+    except:
+        print(f"无法加载 HDR 文件: {hdr_path}")
+        return
+
+    # 添加输出节点
+    output_node = nodes.new(type="ShaderNodeOutputWorld")
+    output_node.location = (200, 0)
+
+    # 连接节点
+    links = world.node_tree.links
+    links.new(env_texture_node.outputs["Color"], background_node.inputs["Color"])
+    links.new(background_node.outputs["Background"], output_node.inputs["Surface"])
+
+    # 设置 HDRI 的强度
+    background_node.inputs["Strength"].default_value = strength
+
+    # 添加贴图坐标节点和映射节点（用于旋转）
+    texture_coord_node = nodes.new(type="ShaderNodeTexCoord")
+    texture_coord_node.location = (-600, 0)
+
+    mapping_node = nodes.new(type="ShaderNodeMapping")
+    mapping_node.location = (-450, 0)
+
+    # 连接贴图坐标节点和映射节点
+    links.new(texture_coord_node.outputs["Generated"], mapping_node.inputs["Vector"])
+    links.new(mapping_node.outputs["Vector"], env_texture_node.inputs["Vector"])
+
+    # 设置旋转值（仅旋转 Z 轴）
+    mapping_node.inputs["Rotation"].default_value[2] = rotation_z
+
+    print(f"HDR 环境贴图已成功添加: {hdr_path}")
+
+
+
 def main(
     render_output_path = "../database/rendered_image.png",
     csv_file = None,
-    iter = 0,
+    iteration = 0,
     resolution = 1920,
     without_2D = False,
-    overlook_only = False 
+    overlook_only = False,
+    realistic = False,
+    black_floor = False
   ):
     clear_scene()
-    file_name = str(uuid.uuid4())
-
-    load_blend_file_backgournd("./database/background_magnet_white.blend")
+    np.random.seed(iteration)
+    file_name = f'{iteration}'
+    if realistic:
+      load_blend_file_backgournd("/home/lds/github/Causality-informed-Generation/code1/database/3d_scenes/background_magnet_realiscit.blend")
+      # raise ValueError("Not implemented")
+      add_hdr_environment("/home/lds/github/Causality-informed-Generation/code1/database/3d_scenes/environment/machine_shop_02_2k.hdr")
+    elif black_floor:
+      load_blend_file_backgournd("./database/background_magnet_blank_floor.blend")
+    else:
+      load_blend_file_backgournd("./database/background_magnet_wooden_floor.blend")
 
     blender = "./database/magnet/magnet.blend"
     needle = "./database/compass/compass_b.blend"
-    random_rotation_angle = random.uniform(0, 360)
-    
+    random_rotation_angle = np.random.uniform(0, 360)
     
     load_blend_file(blender, location=(0, 0, 0), scale=(1, 1, 1), rotation_angle=-random_rotation_angle)
 
     inner_radius = 14/2 # 圆环的内半径
     outer_radius = 13.2/2 + 1  # 圆环的外半径
     # needle_location = random_point_on_ring(inner_radius, outer_radius)
-    needle_location = random_point_outside_rotated_inner_ellipse_within_camera((14.5, 3.5), angle=random_rotation_angle, camera_frame=(-7.5,7.5, -7.5, 7.5))
+    needle_location = random_point_outside_rotated_inner_ellipse_within_camera(iteration = iteration, 
+                                                                               inner_axes = (14.5, 3.5), 
+                                                                               angle=random_rotation_angle, 
+                                                                               camera_frame=(-7.5,7.5, -7.5, 7.5))
     # needle_location = random_point_outside_rotated_rectangle((11.5, 11.5), angle=random_rotation_angle)
     
     # needle_location = random_point_outside_rotated_rectangle()
@@ -568,6 +752,7 @@ def main(
         magnet_length=11.4,
         node_position=needle_location[:2],
         visualize=visualize,
+        iteration = iteration
     )
 
     rotation_angle = result.angle_degrees
@@ -575,10 +760,18 @@ def main(
                     scale=(1, 1, 1), rotation_angle = rotation_angle)
    
 
-    bpy.ops.object.camera_add()
-    camera = bpy.context.object
-    camera.name = "Camera"
-    
+    def set_active_camera(camera_name):
+      camera = bpy.data.objects.get(camera_name)
+      if camera and camera.type == 'CAMERA':
+          bpy.context.scene.camera = camera
+          bpy.context.view_layer.update()  # 强制更新
+          print(f"Camera '{camera_name}' is now set as the active render camera.")
+      else:
+          print(f"Camera '{camera_name}' not found or is not a valid camera.")
+
+    # 示例：设置名为 "MyCamera" 的相机为渲染相机
+
+
     # if not overlook_only:
     #   render_3D_output_path = os.path.join(render_output_path, file_name+f"_3D_{resolution}.png")
     #   set_render_parameters(output_path=render_3D_output_path, resolution=(resolution, resolution))
@@ -586,29 +779,73 @@ def main(
     #   render_scene()
       
     render_3D_over_output_path = os.path.join(render_output_path, file_name+".png")
-    # fit_camera_to_objects_with_random_position(camera, ["needle", "Object_2"], over=True) 
-    fit_camera_to_objects_with_random_position(camera, [ "Object_2"], over=True) 
     object_name = "Object_2"
     needle_name = "needle"
-    set_render_parameters(output_path=render_3D_over_output_path, resolution=(resolution, resolution))
+    
     if check_objects_intersection(object_name, needle_name):
       pass
     else:
-      # save_blend_file("./debug.blend")
-      render_scene()
-      
-      # 将结果写入 CSV 文件
-      with open(csv_file, mode="a", newline="") as file:
-          writer = csv.writer(file)
-          if without_2D and overlook_only:
-            writer.writerow([iter, render_3D_over_output_path, -random_rotation_angle + 360, needle_location[0], needle_location[1], 
-                             result.angle_degrees])
+      for i in range(9):
+        if i == 0:
+          bpy.ops.object.camera_add()
+          camera = bpy.context.object
+          camera.name = "Camera"
+          
+          fit_camera_to_objects_with_random_position(camera, ["needle", "Object_2"], over=True) 
+          fit_camera_to_objects_with_random_position(camera, [ "Object_2"], over=True) 
+          camere_location = camera.location
+        else:
+         
+          if i == 1:
+            camera_position = (0, -8, 10)  # 相机位于 x=0, y=-5, z=5
+          elif i == 2:
+            camera_position = (0, 8, 10)
+          elif i == 3:
+            camera_position = (8, 0, 10)
+          elif i == 4:
+            camera_position = (-8, 0, 10)
+          elif i == 5:
+            camera_position = (8, 8, 10)
+          elif i == 6:
+            camera_position = (-8, -8, 10)
+          elif i == 7:
+            camera_position = (8, -10, 5)
           else:
-            writer.writerow([iter, render_3D_output_path, render_3D_over_output_path, twoD_output_path, -random_rotation_angle, 
-                             needle_location, result.field_direction, result.noisy_field_direction, result.noise])
+            camera_position = (-8, 8, 10)
+          target_position = (0, 0, 0)   # 目标位于原点
 
+          # 添加相机并设置
+          add_camera(location=camera_position, target_location=target_position, camera_name="MyCamera") 
 
-def random_point_outside_rotated_inner_ellipse_within_camera(inner_axes, angle, camera_frame):
+          set_active_camera("MyCamera")
+          camere_location = camera_position
+        render_3D_over_output_path = os.path.join(render_output_path, file_name+f"_{i}.png")
+        set_render_parameters(output_path=render_3D_over_output_path, 
+                              resolution=(resolution, resolution))
+        render_scene()
+        
+        if i == 0:
+          delete_object_by_name("Camera")
+        else:
+          delete_object_by_name("MyCamera")
+
+        
+    # save_blend_file("./magent_3D_wooden_floor_DEBUG.blend")
+
+        # 将结果写入 CSV 文件
+        with open(csv_file, mode="a", newline="") as file:
+            writer = csv.writer(file)
+            if without_2D and overlook_only:
+              writer.writerow([iteration, os.path.basename(render_3D_over_output_path),
+                                camere_location,
+                                -random_rotation_angle + 360, 
+                                needle_location[0], needle_location[1], 
+                              result.angle_degrees])
+            else:
+              writer.writerow([iteration, render_3D_output_path, render_3D_over_output_path, twoD_output_path, -random_rotation_angle, 
+                              needle_location, result.field_direction, result.noisy_field_direction, result.noise])
+
+def random_point_outside_rotated_inner_ellipse_within_camera(iteration, inner_axes, angle, camera_frame):
     """
     随机生成一个点，该点位于旋转内椭圆外部，同时位于相机取景框范围内。
 
@@ -628,8 +865,8 @@ def random_point_outside_rotated_inner_ellipse_within_camera(inner_axes, angle, 
 
     while True:
         # 随机生成一个点在相机取景框范围内
-        x = random.uniform(x_min, x_max)
-        y = random.uniform(y_min, y_max)
+        x = np.random.uniform(x_min, x_max)
+        y = np.random.uniform(y_min, y_max)
 
         # 将点的坐标旋转到内椭圆的局部坐标系
         cos_angle = np.cos(angle_rad)
@@ -665,7 +902,7 @@ def process_task(i, render_output_path, csv_file, resolution, without_2D, overlo
     main(
         render_output_path=render_output_path,
         csv_file=csv_file,
-        iter=i,
+        iteration=i,
         resolution=resolution,
         without_2D=without_2D,
         overlook_only=overlook_only
@@ -674,15 +911,15 @@ def process_task(i, render_output_path, csv_file, resolution, without_2D, overlo
 # Multi-threaded execution
 def run_in_parallel(arguments, render_output_path, csv_file, resolution):
     # Define the range of iterations
-    start = arguments.iter
-    end = arguments.iter + iteration_time
+    start = 0# arguments.iter
+    end = 50# arguments.iter + iteration_time
     print(f"Processing iterations from {start} to {end}")
 
     # Use ThreadPoolExecutor for multi-threading
     with ThreadPoolExecutor(max_workers=4) as executor:  # Adjust `max_workers` as needed
         futures = [
             executor.submit(
-                process_task, i+12_34521, render_output_path, csv_file, resolution, 
+                process_task, i, render_output_path, csv_file, resolution, 
                 arguments.without_2D, arguments.overlook_only
             )
             for i in range(start, end)
@@ -698,25 +935,28 @@ import multiprocessing as mp
 from functools import partial
 import numpy as np
 
-def process_task(i, render_output_path, csv_file, resolution, without_2D, overlook_only):
+def process_task(i, render_output_path, csv_file, resolution, without_2D, overlook_only, realistic=False, black_floor = False):
     """单个进程要执行的任务"""
     np.random.seed(i)
     main(
         render_output_path=render_output_path,
         csv_file=csv_file,
-        iter=i,
+        iteration=i,
         resolution=resolution,
         without_2D=without_2D,
-        overlook_only=overlook_only
+        overlook_only=overlook_only,
+        realistic=realistic,
+        black_floor=black_floor
     )
 
 def run_multiprocess(arguments, iteration_time, render_output_path, csv_file, resolution):
     """多进程执行主函数"""
-    print(arguments.iter, arguments.iter + iteration_time)
+    # print(arguments.iter, arguments.iter + iteration_time)
     
     # 创建进程池，使用CPU核心数量的进程
-    num_processes = mp.cpu_count()
+    num_processes = 5# mp.cpu_count()
     pool = mp.Pool(processes=num_processes)
+    realistic = arguments.realistic
     
     # 准备任务参数
     task_range = range(arguments.iter, arguments.iter + iteration_time)
@@ -728,7 +968,9 @@ def run_multiprocess(arguments, iteration_time, render_output_path, csv_file, re
         csv_file=csv_file,
         resolution=resolution,
         without_2D=arguments.without_2D,
-        overlook_only=arguments.overlook_only
+        overlook_only=arguments.overlook_only,
+        realistic=realistic,
+        black_floor = arguments.black_floor
     )
     
     # 使用进程池执行任务
@@ -745,15 +987,26 @@ if __name__ == "__main__":
     parser.add_argument("--resolution", type=int, help="resolution of the image")
     parser.add_argument("--overlook_only", action="store_true", help="only render the overlook image")
     parser.add_argument("--without_2D", action="store_true", help="whether use 2D figure")
-    arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
+    parser.add_argument("--realistic", action="store_true", help="using realistic scene")
+    parser.add_argument("--black_floor", action="store_true", help="using black floor")
 
-    iteration_time = 15  # 每次渲染的批次数量
+    arguments, unknown = parser.parse_known_args(sys.argv[sys.argv.index("--")+1:])
+    
+
+    iteration_time = 10  # 每次渲染的批次数量
     resolution = arguments.resolution
+    realisitc = arguments.realistic
 
     # CSV 文件路径
     scene = "Magnetic"
-    csv_file = f"./database/magnet_scene/magnet_scene_{resolution}P.csv"
-    
+
+    csv_file = f"./database/Real_magnet_v3/tabular.csv"
+    if realisitc:
+        csv_file = f"./database/Real_magnet_v3_realistic_back/tabular.csv"
+
+    elif arguments.black_floor:
+      csv_file = f"./database/Real_magnet_v3_blank_floor/tabular.csv"
+      # raise ValueError("Not implemented")
     try:
         with open(csv_file, mode="r") as file:
             file_exists = True
@@ -771,7 +1024,7 @@ if __name__ == "__main__":
             
             # Write headers only if the file does not exist
             writer.writerow([
-                "iter", "3D_over", "magnet_direction(degree)", 
+                "iter", "3D_over", 'camera_location',  "magnet_direction(degree)", 
                 "needle_location_x", "needle_location_y", 
                 "needle_direction(degree)"
             ])
