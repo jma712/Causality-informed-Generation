@@ -6,7 +6,8 @@ import os
 import csv
 import random
 import sys
-sys.path.append("/home/lds/miniconda3/envs/joe/lib/python3.9/site-packages/")
+import site
+site.addsitedir("/Users/dsl/.local/lib/python3.11/site-packages")
 from tqdm import tqdm
 import numpy as np
 import argparse
